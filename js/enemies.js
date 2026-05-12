@@ -78,7 +78,8 @@ const Enemies = (() => {
   function createEnemy(type, x, y, level) {
     const stats = CONFIG.enemyStats[type];
     const size = CONFIG.enemySizes[type];
-    const speedMult = Math.pow(CONFIG.waves.speedScale, Math.min(level - 1, 10));
+    const lvl = Math.max(level, 1);
+    const speedMult = Math.pow(CONFIG.waves.speedScale, Math.min(lvl - 1, 10));
     return {
       type,
       x: x || Math.random() * (window.innerWidth - size * 2) + size,
@@ -286,7 +287,7 @@ const Enemies = (() => {
         }
       }
 
-      // Boss health bar
+      // Boss health bar + tentacles reaching toward player
       if (e.type === 'boss') {
         const barW = e.size * 1.2;
         const barH = 8;
@@ -304,6 +305,33 @@ const Enemies = (() => {
         ctx.strokeStyle = CONFIG.colors.white;
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barW, barH);
+
+        // Tentacles reach toward player
+        ctx.strokeStyle = CONFIG.colors.purple;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.6;
+        const playerPos = Player.getPos();
+        const tentacleCount = CONFIG.boss.tentacles;
+        for (let t = 0; t < tentacleCount; t++) {
+          const angle = (t / tentacleCount) * Math.PI * 2 + performance.now() * 0.0005;
+          const startX = e.x + Math.cos(angle) * e.size * 0.3;
+          const startY = e.y + Math.sin(angle) * e.size * 0.3;
+          const endX = startX + Math.cos(angle) * e.size * 0.7;
+          const endY = startY + Math.sin(angle) * e.size * 0.7;
+          // Reach toward player
+          const reachFactor = 0.3;
+          const reachX = endX * (1 - reachFactor) + (playerPos ? playerPos.x : endX) * reachFactor;
+          const reachY = endY * (1 - reachFactor) + (playerPos ? playerPos.y : endY) * reachFactor;
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          // Sinusoidal wave for tentacle feel
+          const midX = (startX + reachX) / 2 + Math.sin(performance.now() * 0.003 + t) * 10;
+          const midY = (startY + reachY) / 2 + Math.cos(performance.now() * 0.003 + t) * 10;
+          ctx.quadraticCurveTo(midX, midY, reachX, reachY);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -335,14 +363,15 @@ const Enemies = (() => {
     // Medium splits into 2 babies
     if (e.type === 'medium') {
       for (let i = 0; i < 2; i++) {
-        const baby = createEnemy('baby', x + (i === 0 ? -20 : 20), y, 1);
+        const baby = createEnemy('baby', x + (i === 0 ? -20 : 20), y, 0);
         baby.entering = false;
         baby.targetY = y;
+        baby.speed *= 1.5;
         list.push(baby);
       }
     }
 
-    // Boss/small drops powerup
+    // Boss/medium drops powerup
     if (e.type === 'boss' || e.type === 'medium') {
       return { x, y }; // powerup drop position
     }

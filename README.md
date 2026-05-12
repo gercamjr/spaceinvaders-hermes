@@ -84,4 +84,17 @@ space-shooter/
 - White flash on enemy hits (3-frame hitFlash)
 - Floating damage numbers
 - Procedural audio via Web Audio API (no external files)
-- Smooth 60fps with requestAnimationFrame
+|- Smooth 60fps with requestAnimationFrame
+
+## Screenshot
+
+```
++----------------------------------------------------+
+|                      OCTOP                         |
+|              INVADERS  [Screenshot                  |
+|                   Placeholder]                      |
+|                                                     |
+|  Open http://localhost:3001 to see the game!       |
++----------------------------------------------------+
+```
+

@@ -25,7 +25,7 @@ const CONFIG = {
   // --- Player ---
   player: {
     radius: 18,
-    contactBuffer: 5,
+    contactBuffer: 30,
     lerpFactor: 0.35,
     maxHealth: 100,
     fireRate: 120,       // ms between shots

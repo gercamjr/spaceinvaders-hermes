@@ -321,7 +321,11 @@ const Game = (() => {
             enemiesKilled++;
 
             // Score with combo
-            const points = e.score * combo;
+            let points = e.score * combo;
+            // During unleash: 3x score multiplier
+            if (Player.isUnleashing()) {
+              points *= CONFIG.player.unleashMultiplier;
+            }
             score += points;
             combo++;
             combo = Math.min(combo, CONFIG.combo.maxMultiplier);
@@ -354,6 +358,20 @@ const Game = (() => {
       for (const e of Enemies.getAlive()) {
         const eRadius = e.size / 2;
         if (circleCollision(pPos.x, pPos.y, pRadius, e.x, e.y, eRadius)) {
+          // During unleash: destroy enemy on contact, chain reaction explosion
+          if (Player.isUnleashing()) {
+            e.hp = 0;
+            Enemies.killEnemy(e, e.x, e.y);
+            enemiesKilled++;
+            let points = e.score * combo * CONFIG.player.unleashMultiplier;
+            score += points;
+            combo++;
+            combo = Math.min(combo, CONFIG.combo.maxMultiplier);
+            comboTimer = CONFIG.combo.decayTime;
+            Particles.spawnExplosion(e.x, e.y, e.type);
+            AudioSys.playExplosion(e.type);
+            continue;
+          }
           Player.takeDamage(15);
           flashAlpha = 0.3;
           triggerShake(8, 200);

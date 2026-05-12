@@ -50,16 +50,16 @@ const Background = (() => {
       });
     }
 
-    // Planets - mix of far (small/dim/slow) and near (large/bright/fast)
+    // Planets - mix of far (small/dim/slow) and near (large/bright/fast) for depth variation
     for (let i = 0; i < CONFIG.background.planetCount; i++) {
       const isFar = Math.random() > 0.5;
       const hue = Math.random() * 360;
       planets.push({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
-        radius: isFar ? 10 + Math.random() * 20 : 30 + Math.random() * 50,
-        speed: isFar ? 0.1 + Math.random() * 0.15 : 0.4 + Math.random() * 0.5,
-        opacity: isFar ? 0.2 + Math.random() * 0.25 : 0.7 + Math.random() * 0.3,
+        radius: isFar ? 20 + Math.random() * 20 : 60 + Math.random() * 40,
+        speed: isFar ? 0.1 + Math.random() * 0.1 : 0.5 + Math.random() * 0.3,
+        opacity: isFar ? 0.3 + Math.random() * 0.1 : 0.8 + Math.random() * 0.2,
         color: `hsl(${hue}, 60%, ${isFar ? 30 : 50}%)`,
         depth: isFar ? 0.05 + Math.random() * 0.1 : 0.3 + Math.random() * 0.4,
         hasRing: Math.random() > 0.7
