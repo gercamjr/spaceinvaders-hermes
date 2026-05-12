@@ -680,17 +680,28 @@ const Enemies = (() => {
     }
 
     // Boss/medium drops powerup
-    if (e.type === 'boss' || e.type === 'medium') {
-      return { x, y }; // powerup drop position
+    if (e.type === 'boss') {
+      return { x, y };
     }
     return null;
+  }
+
+  // Track medium kills for powerup drop (1 in 15)
+  let mediumKillsSinceDrop = 0;
+  function recordMediumKill() {
+    mediumKillsSinceDrop++;
+    if (mediumKillsSinceDrop >= 15) {
+      mediumKillsSinceDrop = 0;
+      return true;
+    }
+    return false;
   }
 
   function getAlive() { return list.filter(e => e.alive); }
   function getInkBlobs() { return inkBlobs; }
   function getEnemyLasers() { return enemyLasers; }
   function setLevel(lvl) { currentLevel = lvl; }
-  function clear() { list = []; inkBlobs = []; enemyLasers = []; crabEnemies = []; }
+  function clear() { list = []; inkBlobs = []; enemyLasers = []; crabEnemies = []; mediumKillsSinceDrop = 0; }
   function isEmpty() { return list.filter(e => e.alive).length === 0; }
 
   // For start screen preview
@@ -725,6 +736,7 @@ const Enemies = (() => {
     spawnMiniSwarm,
     createCrabEnemy,
     spawnCrab,
+    recordMediumKill,
     updateCrabs,
     drawCrabs,
     killCrab,

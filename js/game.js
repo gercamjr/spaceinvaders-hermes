@@ -376,6 +376,8 @@ const Game = (() => {
           if (e.hp <= 0) {
             const drop = Enemies.killEnemy(e, e.x, e.y);
             enemiesKilled++;
+            // Track medium kills for powerup eligibility (1 in 15)
+            let mediumEligible = (e.type === 'medium' && Enemies.recordMediumKill());
 
             // Score with combo
             let points = e.score * combo;
@@ -392,11 +394,11 @@ const Game = (() => {
             const shakeCfg = CONFIG.shake[e.type];
             triggerShake(shakeCfg.intensity, shakeCfg.duration);
 
-            // Powerup drop
-            if (drop) {
+            // Powerup drop: boss always, medium every 15th kill
+            if (drop || (mediumEligible && e.type === 'medium')) {
               powerups.push({
-                x: drop.x,
-                y: drop.y,
+                x: e.x,
+                y: e.y,
                 radius: CONFIG.powerup.radius,
                 vy: CONFIG.powerup.fallSpeed,
                 pulse: 0
