@@ -70,6 +70,16 @@ const Enemies = (() => {
     [0,2,0,0,0,0,0,1,1,0,0,0,0,0,2,0]
   ];
 
+  // Crabby Squid: 10x6 grid — wide crab body with pincers + squid tentacles
+  const CRAB_GRID = [
+    [0,0,0,0,1,1,1,1,0,0,0,0],
+    [0,1,0,1,1,1,1,1,1,0,1,0],
+    [1,1,1,3,1,1,1,3,1,1,1,1],
+    [0,1,1,1,1,1,1,1,1,1,1,0],
+    [0,1,2,1,1,1,1,1,1,2,1,0],
+    [0,0,2,1,1,1,1,1,1,2,0,0],
+  ];
+
   const GRIDS = {
     small:  SMALL_GRID,
     medium: MEDIUM_GRID,
@@ -145,11 +155,11 @@ const Enemies = (() => {
 
   // Enemy formation helpers (exposed for game.js wave counting)
   function getRows(level) {
-    return Math.min(2 + Math.floor(level / 2), 6);
+    return Math.min(3 + Math.floor(level / 2), 8);
   }
 
   function getCols(level) {
-    return Math.min(3 + Math.floor(level / 3), 8);
+    return Math.min(4 + Math.floor(level / 3), 10);
   }
 
   // Spawn enemies in a grid-like row formation (Space Invaders style)
@@ -158,16 +168,16 @@ const Enemies = (() => {
   function spawnWave(level) {
     const rows = getRows(level);
     const cols = getCols(level);
-    const hSpacing = 80;
-    const vSpacing = 60;
+    const hSpacing = 70;
+    const vSpacing = 50;
     const formationW = (cols - 1) * hSpacing;
     const formationH = (rows - 1) * vSpacing;
     const startX = window.innerWidth / 2 - formationW / 2;
     // Start formation well above the screen, centered horizontally
     const startY = -100 - formationH / 2;
 
-    // Types per row cycle: medium, small, baby, medium, small, baby
-    const typeCycle = ['medium', 'small', 'baby', 'medium', 'small', 'baby'];
+    // Types per row cycle: medium, small, baby, medium, small, baby, medium, small
+    const typeCycle = ['medium', 'small', 'baby', 'medium', 'small', 'baby', 'medium', 'small'];
 
     for (let row = 0; row < rows; row++) {
       const rowType = typeCycle[row % typeCycle.length];

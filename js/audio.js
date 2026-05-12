@@ -19,7 +19,7 @@ const AudioSys = (() => {
   let bgmBassOsc = null;
   let bgmBassGain = null;
   let bgmLoopTimer = null;
-  let bgmVolume = 0.5;
+  let bgmVolume = 0.7;
   let bgmRunning = false;
 
   // --- BGM configuration ---

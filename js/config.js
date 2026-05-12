@@ -49,6 +49,7 @@ const CONFIG = {
     small: 36,
     medium: 48,
     baby: 20,
+    crab: 30,
     boss: 150
   },
 
@@ -57,6 +58,7 @@ const CONFIG = {
     small:  { hp: 10, speed: 1.5, score: 10, color: '#FF6B9D' },
     medium: { hp: 25, speed: 1.0, score: 25, color: '#4DA6FF' },
     baby:   { hp: 5,  speed: 2.5, score: 5,  color: '#00FFFF' },
+    crab:   { hp: 15, speed: 2.0, score: 15, color: '#FF8800' },
     boss:   { hp: 500, speed: 0.5, score: 500, color: '#C77DFF' }
   },
 
@@ -86,6 +88,7 @@ const CONFIG = {
     small:  { intensity: 3,  duration: 100 },
     medium: { intensity: 5,  duration: 150 },
     baby:   { intensity: 2,  duration: 80  },
+    crab:   { intensity: 3,  duration: 100 },
     boss:   { intensity: 12, duration: 400 }
   },
 
