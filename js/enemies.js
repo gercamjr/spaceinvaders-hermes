@@ -686,11 +686,12 @@ const Enemies = (() => {
     return null;
   }
 
-  // Track medium kills for powerup drop (1 in 15)
+  // Track medium kills for powerup drop (1 in 15 before level 10, 1 in 25 after)
   let mediumKillsSinceDrop = 0;
   function recordMediumKill() {
     mediumKillsSinceDrop++;
-    if (mediumKillsSinceDrop >= 15) {
+    const threshold = currentLevel > 10 ? 25 : 15;
+    if (mediumKillsSinceDrop >= threshold) {
       mediumKillsSinceDrop = 0;
       return true;
     }
