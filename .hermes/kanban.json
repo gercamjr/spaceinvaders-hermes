@@ -4,43 +4,34 @@
       "title": "Backlog",
       "cards": [
         {
-          "id": "mobile-responsive-01",
-          "title": "Make it mobile friendly (responsive, touch support, etc)",
-          "column": "backlog",
-          "labels": [
-            "mobile"
-          ],
-          "body": "- Add viewport meta tag and responsive canvas sizing\n- Implement touch event handlers (touchstart, touchmove, touchend) to replace mouse events on mobile\n- Prevent default touch behaviors (scroll, zoom) during gameplay\n- Auto-fire on touch (don't require holding)\n- Scale UI elements for smaller screens\n- Test on both portrait and landscape orientations\n- Add mobile-specific CSS (cursor: default on touch devices, hide HUD elements on very small screens)",
-          "status": "backlog"
-        },
-        {
-          "id": "bg-music-02",
-          "title": "Create background music",
+          "id": "bg-music-louder-05",
+          "title": "Make background music louder",
           "column": "backlog",
           "labels": [
             "audio"
           ],
-          "body": "- Add procedural background music loop via Web Audio API\n- Create a subtle ambient synth track (no external files)\n- Use short looping pattern (2-4 measures) with layered oscillators\n- Add volume control / mute toggle in UI\n- BGM should fade out during Game Over, resume on new game\n- Ensure BGM doesn't overpower laser/explosion sounds",
+          "body": "- Increase BGM master gain volume significantly (current: 0.06, target: 0.15-0.2)\n- Increase bass pad gain\n- Increase arpeggio gain\n- Ensure BGM is still balanced with other sounds (not drowning explosions/lasers)\n- Test the overall audio mix in-game",
           "status": "backlog"
         },
         {
-          "id": "enemy-rows-03",
-          "title": "Change enemy generation to groups of rows",
+          "id": "more-enemies-06",
+          "title": "Increase amount of enemies per level",
           "column": "backlog",
           "labels": [
             "gameplay"
           ],
-          "body": "- Replace random wave spawning with structured row-based formations\n- Spawn enemies in grid-like rows (classic Space Invaders style)\n- Rows descend gradually toward the player\n- Each row can contain different enemy types (e.g., front row = babies, back row = mediums)\n- Boss still appears every 5 levels (no rows, just single boss + mini-swarm)\n- Update level progression logic for row clear conditions\n- Keep sine wave movement for individual enemies within the row formation",
+          "body": "- Increase rows per level: current formula min(2 + floor(level/2), 6), increase to min(3 + floor(level/2), 8)\n- Increase columns per row: current min(3 + floor(level/3), 8), increase to min(4 + floor(level/3), 10)\n- Optionally add a second set of rows that spawn after first wave is cleared\n- Ensure levels feel progressively harder but fair\n- Balance enemy density so screen is not overcrowded at high levels\n- Test at levels 1, 3, 5, 10 for visual density",
           "status": "backlog"
         },
         {
-          "id": "enemy-lasers-04",
-          "title": "Enemies shoot lasers toward player and damage player upon hit",
+          "id": "crab-squid-07",
+          "title": "Create new enemy: Crabby Squid - horizontal traveling crab-like enemy",
           "column": "backlog",
           "labels": [
-            "combat"
+            "gameplay",
+            "art"
           ],
-          "body": "- Implement enemy laser system: enemies periodically fire toward player position\n- Small octopus fires straight down\n- Medium octopus fires aimed shots toward player\n- Boss has rapid-fire multi-laser barrage (in addition to existing ink blobs)\n- Collision detection: enemy laser vs player circle\n- On hit: player takes damage (10 HP), invulnTimer triggers, screen flash, shake\n- Visual: red laser trails, spawn particle sparks on impact\n- Audio: short distinct enemy-fire sound (pitch down sweep)\n- Difficulty scales with level (fire rate increases, accuracy improves)",
+          "body": "- Define a new enemy type 'crab' in config.js with stats: hp 15, speed 2.0, score 15, color orange (#FF8800)\n- Size: ~30px\n- Create pixel art grid for crab-squid hybrid (8x6 or similar) - should resemble a crab with squid-like features\n- Movement: travels HORIZONTALLY across the screen (left to right or right to left) at random y positions mid-screen\n- On reaching screen edge, reverses direction or exits and respawns from opposite side\n- Animation: side-to-side leg/tentacle wiggle while moving\n- Can fire small projectiles downward while moving\n- Spawns periodically (not in rows) - maybe 1-2 per level, or every few seconds during a level\n- Drop from crabby squid has small chance of powerup\n- Add to pixel art preview on start screen",
           "status": "backlog"
         }
       ]
@@ -51,13 +42,55 @@
     },
     "done": {
       "title": "Done",
-      "cards": []
+      "cards": [
+        {
+          "id": "mobile-responsive-01",
+          "title": "Make it mobile friendly (responsive, touch support, etc)",
+          "column": "done",
+          "labels": [
+            "mobile"
+          ],
+          "body": "- Add viewport meta tag and responsive canvas sizing\n- Implement touch event handlers (touchstart, touchmove, touchend) to replace mouse events on mobile\n- Prevent default touch behaviors (scroll, zoom) during gameplay\n- Auto-fire on touch (don't require holding)\n- Scale UI elements for smaller screens\n- Test on both portrait and landscape orientations\n- Add mobile-specific CSS (cursor: default on touch devices, hide HUD elements on very small screens)",
+          "status": "backlog"
+        },
+        {
+          "id": "bg-music-02",
+          "title": "Create background music",
+          "column": "done",
+          "labels": [
+            "audio"
+          ],
+          "body": "- Add procedural background music loop via Web Audio API\n- Create a subtle ambient synth track (no external files)\n- Use short looping pattern (2-4 measures) with layered oscillators\n- Add volume control / mute toggle in UI\n- BGM should fade out during Game Over, resume on new game\n- Ensure BGM doesn't overpower laser/explosion sounds",
+          "status": "backlog"
+        },
+        {
+          "id": "enemy-rows-03",
+          "title": "Change enemy generation to groups of rows",
+          "column": "done",
+          "labels": [
+            "gameplay"
+          ],
+          "body": "- Replace random wave spawning with structured row-based formations\n- Spawn enemies in grid-like rows (classic Space Invaders style)\n- Rows descend gradually toward the player\n- Each row can contain different enemy types (e.g., front row = babies, back row = mediums)\n- Boss still appears every 5 levels (no rows, just single boss + mini-swarm)\n- Update level progression logic for row clear conditions\n- Keep sine wave movement for individual enemies within the row formation",
+          "status": "backlog"
+        },
+        {
+          "id": "enemy-lasers-04",
+          "title": "Enemies shoot lasers toward player and damage player upon hit",
+          "column": "done",
+          "labels": [
+            "combat"
+          ],
+          "body": "- Implement enemy laser system: enemies periodically fire toward player position\n- Small octopus fires straight down\n- Medium octopus fires aimed shots toward player\n- Boss has rapid-fire multi-laser barrage (in addition to existing ink blobs)\n- Collision detection: enemy laser vs player circle\n- On hit: player takes damage (10 HP), invulnTimer triggers, screen flash, shake\n- Visual: red laser trails, spawn particle sparks on impact\n- Audio: short distinct enemy-fire sound (pitch down sweep)\n- Difficulty scales with level (fire rate increases, accuracy improves)",
+          "status": "backlog"
+        }
+      ]
     }
   },
   "labels": {
     "mobile": "Mobile-friendly (responsive, touch support)",
     "audio": "Background music",
     "gameplay": "Gameplay enhancement",
-    "combat": "Combat mechanics"
+    "combat": "Combat mechanics",
+    "art": "Pixel art / visual design"
   }
 }
