@@ -649,6 +649,18 @@ const Enemies = (() => {
         enemyLasers.splice(i, 1);
       }
     }
+
+    // Update dropped mines
+    for (let i = mines.length - 1; i >= 0; i--) {
+      const m = mines[i];
+      m.y += 0.5 * dtScale;
+      m.timer += dt;
+      if (m.timer > 500) m.armed = true;
+      // Remove mines that go off screen
+      if (m.y > window.innerHeight + 30) {
+        mines.splice(i, 1);
+      }
+    }
   }
 
   function draw(ctx) {
@@ -663,6 +675,10 @@ const Enemies = (() => {
       const cellH = e.size / rows;
       const ox = e.x - e.size / 2;
       const oy = e.y - e.size / 2;
+
+      // Handle teleporter alpha
+      const baseAlpha = e.teleportAlpha !== undefined ? e.teleportAlpha : 1;
+      ctx.globalAlpha = baseAlpha;
 
       // Tentacle animation: toggle bottom tentacle cells by row
       const tentWave = Math.floor(frameCount / 8) % 2;
@@ -741,6 +757,22 @@ const Enemies = (() => {
         }
         ctx.globalAlpha = 1;
       }
+
+      // Shielded drone: draw shield arc in front
+      if (e.type === 'shield' && e.shieldActive) {
+        ctx.strokeStyle = `rgba(74, 144, 217, ${0.5 + Math.sin(frameCount * 0.1) * 0.3})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size / 2 + 4, Math.PI * 1.2, Math.PI * 1.8);
+        ctx.stroke();
+        // Shield glow
+        ctx.shadowColor = '#4A90D9';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size / 2 + 4, Math.PI * 1.2, Math.PI * 1.8);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
     }
 
     // Draw ink blobs
@@ -773,6 +805,29 @@ const Enemies = (() => {
     }
 
     ctx.globalAlpha = 1;
+  }
+
+  function drawMines(ctx) {
+    for (const m of mines) {
+      ctx.save();
+      // Pulsing red/orange glow when armed
+      if (m.armed) {
+        ctx.shadowColor = CONFIG.colors.orange;
+        ctx.shadowBlur = 8 + Math.sin(frameCount * 0.15) * 4;
+        ctx.fillStyle = CONFIG.colors.orange;
+      } else {
+        ctx.fillStyle = '#884400';
+      }
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+      ctx.fill();
+      // Inner detail
+      ctx.fillStyle = m.armed ? '#FFCC00' : '#553300';
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.radius * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   function killEnemy(e, x, y) {
