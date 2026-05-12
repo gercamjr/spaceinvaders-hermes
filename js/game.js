@@ -190,7 +190,7 @@ const Game = (() => {
     shakeDuration = 0;
     flashAlpha = 0;
     mobileAutoFiring = false;
-    Enemies.clear();
+    Enemies.resetAll();
     Particles.clear();
     Player.reset();
   }

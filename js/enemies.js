@@ -10,6 +10,7 @@ const Enemies = (() => {
   let enemyLasers = [];
   let frameCount = 0;
   let currentLevel = 1;
+  let bossesDestroyed = 0;
 
   // --- Pixel art grids for each octopus type ---
   // 0 = empty, 1 = body, 2 = tentacle (animated), 3 = eye
@@ -96,13 +97,14 @@ const Enemies = (() => {
     const size = CONFIG.enemySizes[type];
     const lvl = Math.max(level, 1);
     const speedMult = Math.pow(CONFIG.waves.speedScale, Math.min(lvl - 1, 10));
+    const hpMult = 1 + (lvl - 1) * 0.15 + bossesDestroyed * 0.15;
     return {
       type,
       x: x || Math.random() * (window.innerWidth - size * 2) + size,
       y: y || -size,
       size,
-      hp: stats.hp * (1 + (level - 1) * 0.15),
-      maxHp: stats.hp * (1 + (level - 1) * 0.15),
+      hp: stats.hp * hpMult,
+      maxHp: stats.hp * hpMult,
       speed: stats.speed * speedMult,
       color: stats.color,
       score: stats.score,
@@ -243,6 +245,7 @@ const Enemies = (() => {
     const size = CONFIG.enemySizes.crab;
     const lvl = Math.max(currentLevel, 1);
     const speedMult = Math.pow(CONFIG.waves.speedScale, Math.min(lvl - 1, 10));
+    const crabhpmult = 1 + (lvl - 1) * 0.15 + bossesDestroyed * 0.15;
     const y = 100 + Math.random() * (window.innerHeight * 0.6 - 100);
     const direction = side === 'left' ? 1 : -1;
     const x = side === 'left' ? -size : window.innerWidth + size;
@@ -251,8 +254,8 @@ const Enemies = (() => {
       x,
       y,
       size,
-      hp: stats.hp * (1 + (lvl - 1) * 0.15),
-      maxHp: stats.hp * (1 + (lvl - 1) * 0.15),
+      hp: stats.hp * crabhpmult,
+      maxHp: stats.hp * crabhpmult,
       speed: stats.speed * speedMult * direction,
       color: stats.color,
       score: stats.score,
@@ -659,6 +662,11 @@ const Enemies = (() => {
     const idx = list.indexOf(e);
     if (idx >= 0) list.splice(idx, 1);
 
+    // Track boss kills to scale enemy health
+    if (e.type === 'boss') {
+      bossesDestroyed++;
+    }
+
     // Ink splatter
     Particles.spawnInkSplatter(x, y, e.color, e.type);
 
@@ -702,7 +710,8 @@ const Enemies = (() => {
   function getInkBlobs() { return inkBlobs; }
   function getEnemyLasers() { return enemyLasers; }
   function setLevel(lvl) { currentLevel = lvl; }
-  function clear() { list = []; inkBlobs = []; enemyLasers = []; crabEnemies = []; mediumKillsSinceDrop = 0; }
+  function resetAll() { list = []; inkBlobs = []; enemyLasers = []; crabEnemies = []; mediumKillsSinceDrop = 0; bossesDestroyed = 0; currentLevel = 1; }
+  function clear() { list = []; inkBlobs = []; enemyLasers = []; crabEnemies = []; }
   function isEmpty() { return list.filter(e => e.alive).length === 0; }
 
   // For start screen preview
@@ -751,6 +760,7 @@ const Enemies = (() => {
     getInkBlobs,
     getEnemyLasers,
     setLevel,
+    resetAll,
     clear,
     isEmpty,
     drawPreview
