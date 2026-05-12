@@ -203,8 +203,6 @@ const Game = (() => {
   }
 
   function spawnWave() {
-    const count = CONFIG.waves.baseCount + Math.floor(level * CONFIG.waves.countPerLevel);
-    waveEnemiesTotal = count;
     waveEnemiesSpawned = 0;
     waveSpawnTimer = 0;
 
@@ -218,6 +216,11 @@ const Game = (() => {
     if (level % CONFIG.boss.interval === 0) {
       bossSpawned = true;
       Enemies.spawnBoss(level);
+    } else {
+      // Non-boss levels: spawn row-based formation instantly
+      Enemies.spawnWave(level);
+      waveEnemiesTotal = Enemies.getAlive().length;
+      waveEnemiesSpawned = waveEnemiesTotal; // all already spawned
     }
   }
 
@@ -339,32 +342,15 @@ const Game = (() => {
     // Update crab enemies
     Enemies.updateCrabs(dt);
 
-    // Wave spawning - spawn enemies one at a time over time
-    if (!bossSpawned) {
-      waveSpawnTimer += dt;
-      if (waveSpawnTimer >= CONFIG.waves.spawnInterval && waveEnemiesSpawned < waveEnemiesTotal) {
-        const r = Math.random();
-        let type;
-        if (level >= 3 && r < 0.25) {
-          type = 'medium';
-        } else if (r < 0.6) {
-          type = 'small';
-        } else {
-          type = 'baby';
-        }
-        Enemies.spawnOne(type, level);
-        waveEnemiesSpawned++;
-        waveSpawnTimer = 0;
-      }
-    }
+    // Wave spawning: row formation is spawned instantly in spawnWave(),
+    // so no per-frame spawning needed for non-boss levels.
 
     // Crab enemy spawning: spawn 1-2 per level, periodically
     if (!bossSpawned && level >= 2) {
       const crabsAlive = Enemies.getCrabEnemies().filter(c => c.alive).length;
       if (crabsAlive === 0 && Math.random() < 0.008 * level) {
         const side = Math.random() < 0.5 ? 'left' : 'right';
-        const newCrab = Enemies.createCrabEnemy(side);
-        newCrab.alive = true;
+        Enemies.spawnCrab(side);
       }
     }
 

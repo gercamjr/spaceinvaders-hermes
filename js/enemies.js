@@ -267,6 +267,11 @@ const Enemies = (() => {
     };
   }
 
+  function spawnCrab(side) {
+    const crab = createCrabEnemy(side);
+    crabEnemies.push(crab);
+  }
+
   function updateCrabs(dt) {
     const dtScale = dt / 16.67;
 
@@ -719,6 +724,7 @@ const Enemies = (() => {
     spawnBoss,
     spawnMiniSwarm,
     createCrabEnemy,
+    spawnCrab,
     updateCrabs,
     drawCrabs,
     killCrab,
