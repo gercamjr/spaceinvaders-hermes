@@ -437,6 +437,7 @@ const Game = (() => {
           e.y += 30;
           if (!Player.isAlive()) {
             state = 'GAMEOVER';
+            AudioSys.stopBGM();
             Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
             AudioSys.playExplosion('boss');
           }
