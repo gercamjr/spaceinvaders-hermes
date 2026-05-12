@@ -336,6 +336,9 @@ const Game = (() => {
     // Update enemies
     Enemies.update(dt);
 
+    // Update crab enemies
+    Enemies.updateCrabs(dt);
+
     // Wave spawning - spawn enemies one at a time over time
     if (!bossSpawned) {
       waveSpawnTimer += dt;
@@ -352,6 +355,16 @@ const Game = (() => {
         Enemies.spawnOne(type, level);
         waveEnemiesSpawned++;
         waveSpawnTimer = 0;
+      }
+    }
+
+    // Crab enemy spawning: spawn 1-2 per level, periodically
+    if (!bossSpawned && level >= 2) {
+      const crabsAlive = Enemies.getCrabEnemies().filter(c => c.alive).length;
+      if (crabsAlive === 0 && Math.random() < 0.008 * level) {
+        const side = Math.random() < 0.5 ? 'left' : 'right';
+        const newCrab = Enemies.createCrabEnemy(side);
+        newCrab.alive = true;
       }
     }
 
@@ -409,6 +422,52 @@ const Game = (() => {
       }
     }
 
+    // --- Bullet vs Crab collision ---
+    for (let bi = bullets.length - 1; bi >= 0; bi--) {
+      const b = bullets[bi];
+      for (const c of Enemies.getCrabEnemies()) {
+        const bulletR = b.width;
+        const crabR = c.size / 2;
+
+        if (circleCollision(b.x, b.y, bulletR, c.x, c.y, crabR)) {
+          c.hitFlash = 3;
+          c.hp -= b.damage;
+          bullets.splice(bi, 1);
+
+          Particles.spawnSparks(b.x, b.y, 3 + Math.floor(Math.random() * 3));
+          Particles.spawnDamageNumber(c.x, c.y - c.size / 2, b.damage);
+          AudioSys.playHit();
+
+          if (c.hp <= 0) {
+            const drop = Enemies.killCrab(c, c.x, c.y);
+            enemiesKilled++;
+            let points = c.score * combo;
+            if (Player.isUnleashing()) {
+              points *= CONFIG.player.unleashMultiplier;
+            }
+            score += points;
+            combo++;
+            combo = Math.min(combo, CONFIG.combo.maxMultiplier);
+            comboTimer = CONFIG.combo.decayTime;
+
+            const shakeCfg = CONFIG.shake.crab;
+            triggerShake(shakeCfg.intensity, shakeCfg.duration);
+
+            if (drop) {
+              powerups.push({
+                x: drop.x,
+                y: drop.y,
+                radius: CONFIG.powerup.radius,
+                vy: CONFIG.powerup.fallSpeed,
+                pulse: 0
+              });
+            }
+          }
+          break;
+        }
+      }
+    }
+
     // --- Player vs Enemy contact ---
     if (Player.isAlive() && Player.getInvulnTimer() <= 0) {
       const pPos = Player.getPos();
@@ -437,6 +496,38 @@ const Game = (() => {
           comboTimer = 0;
           // Push enemy away
           e.y += 30;
+          if (!Player.isAlive()) {
+            state = 'GAMEOVER';
+            AudioSys.stopBGM();
+            Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
+            AudioSys.playExplosion('boss');
+          }
+        }
+      }
+
+      // Player vs crab enemy contact
+      for (const c of Enemies.getCrabEnemies()) {
+        const crabR = c.size / 2;
+        if (circleCollision(pPos.x, pPos.y, pRadius, c.x, c.y, crabR)) {
+          if (Player.isUnleashing()) {
+            Enemies.killCrab(c, c.x, c.y);
+            enemiesKilled++;
+            let points = c.score * combo * CONFIG.player.unleashMultiplier;
+            score += points;
+            combo++;
+            combo = Math.min(combo, CONFIG.combo.maxMultiplier);
+            comboTimer = CONFIG.combo.decayTime;
+            Particles.spawnExplosion(c.x, c.y, 'small');
+            AudioSys.playExplosion('small');
+            continue;
+          }
+          Player.takeDamage(10);
+          flashAlpha = 0.3;
+          triggerShake(5, 150);
+          combo = 1;
+          comboTimer = 0;
+          // Push crab toward its direction
+          c.x += c.direction * 50;
           if (!Player.isAlive()) {
             state = 'GAMEOVER';
             AudioSys.stopBGM();
@@ -584,6 +675,9 @@ const Game = (() => {
 
     // Enemies
     Enemies.draw(ctx);
+
+    // Crabby Squid enemies
+    Enemies.drawCrabs(ctx);
 
     // Player
     Player.draw(ctx);

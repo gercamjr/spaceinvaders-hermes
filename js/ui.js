@@ -112,8 +112,8 @@ const UI = (() => {
     ctx.fillText('A Space Shooter', cx, titleCy + titleSize);
 
     // Octopus previews
-    const types = ['small', 'medium', 'baby', 'boss'];
-    const labels = ['Small', 'Medium', 'Baby', 'BOSS'];
+    const types = ['small', 'medium', 'baby', 'crab', 'boss'];
+    const labels = ['Small', 'Medium', 'Baby', 'Crabby', 'BOSS'];
     const totalPreviewWidth = types.length * (previewSize + scaledFontSize(20));
     const startX = Math.max(scaledFontSize(10), cx - totalPreviewWidth / 2);
 

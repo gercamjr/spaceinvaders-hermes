@@ -88,6 +88,9 @@ const Enemies = (() => {
     boss:   BOSS_GRID
   };
 
+  // --- Crabby Squid: separate array for horizontal movers ---
+  let crabEnemies = [];
+
   function createEnemy(type, x, y, level) {
     const stats = CONFIG.enemyStats[type];
     const size = CONFIG.enemySizes[type];
@@ -109,7 +112,7 @@ const Enemies = (() => {
       sineOffset: Math.random() * Math.PI * 2,
       sineAmp: type === 'small' ? 80 : type === 'boss' ? 40 : 50,
       sineFreq: 0.02 + Math.random() * 0.01,
-      movePattern: type === 'small' ? 'sine' : type === 'boss' ? 'boss' : 'straight',
+      movePattern: type === 'small' ? 'sine' : type === 'boss' ? 'boss' : type === 'crab' ? 'none' : 'straight',
       // Boss-specific
       phase: 0,
       inkTimer: 0,
@@ -232,6 +235,151 @@ const Enemies = (() => {
       enemy.speed *= 1.5;
       list.push(enemy);
     }
+  }
+
+  // --- Crabby Squid: horizontal mover that wraps around ---
+  function createCrabEnemy(side) {
+    const stats = CONFIG.enemyStats.crab;
+    const size = CONFIG.enemySizes.crab;
+    const lvl = Math.max(currentLevel, 1);
+    const speedMult = Math.pow(CONFIG.waves.speedScale, Math.min(lvl - 1, 10));
+    const y = 100 + Math.random() * (window.innerHeight * 0.6 - 100);
+    const direction = side === 'left' ? 1 : -1;
+    const x = side === 'left' ? -size : window.innerWidth + size;
+    return {
+      type: 'crab',
+      x,
+      y,
+      size,
+      hp: stats.hp * (1 + (lvl - 1) * 0.15),
+      maxHp: stats.hp * (1 + (lvl - 1) * 0.15),
+      speed: stats.speed * speedMult * direction,
+      color: stats.color,
+      score: stats.score,
+      hitFlash: 0,
+      alive: true,
+      direction,
+      side,
+      // Crab shooting (every 2-3 seconds)
+      laserTimer: 2000 + Math.random() * 1000,
+      // Tentacle animation
+      tentWave: 0
+    };
+  }
+
+  function updateCrabs(dt) {
+    const dtScale = dt / 16.67;
+
+    for (let i = crabEnemies.length - 1; i >= 0; i--) {
+      const c = crabEnemies[i];
+      if (!c.alive) continue;
+
+      // Hit flash decay
+      if (c.hitFlash > 0) c.hitFlash--;
+
+      // Horizontal movement
+      c.x += c.speed * dtScale;
+
+      // Crab laser firing (every 2-3 seconds)
+      const levelMult = 1 + (currentLevel - 1) * 0.1;
+      c.laserTimer -= dt * levelMult;
+      if (c.laserTimer <= 0) {
+        createEnemyLaser(c.x, c.y + c.size / 2, 0, 4);
+        c.laserTimer = 2000 + Math.random() * 1000;
+      }
+
+      // Wrap around: when reaching opposite edge, respawn on starting side at new random y
+      if (c.direction === 1 && c.x > window.innerWidth + c.size) {
+        c.x = -c.size;
+        c.y = 100 + Math.random() * (window.innerHeight * 0.6 - 100);
+      } else if (c.direction === -1 && c.x < -c.size) {
+        c.x = window.innerWidth + c.size;
+        c.y = 100 + Math.random() * (window.innerHeight * 0.6 - 100);
+      }
+    }
+  }
+
+  function drawCrabs(ctx) {
+    for (const c of crabEnemies) {
+      if (!c.alive) continue;
+
+      const grid = GRIDS.crab;
+      const rows = grid.length;
+      const cols = grid[0].length;
+      const cellW = c.size / cols;
+      const cellH = c.size / rows;
+      const ox = c.x - c.size / 2;
+      const oy = c.y - c.size / 2;
+
+      // Tentacle/leg animation toggle
+      const tentWave = Math.floor(frameCount / 8) % 2;
+
+      for (let r = 0; r < rows; r++) {
+        for (let cc = 0; cc < cols; cc++) {
+          const val = grid[r][cc];
+          if (val === 0) continue;
+
+          // Animate tentacle/leg cells (val === 2)
+          if (val === 2) {
+            const isBottomRows = r >= rows - 3;
+            if (tentWave === 1 && isBottomRows && (r + cc) % 2 === 0) continue;
+          }
+
+          let color = c.color;
+          if (val === 3) color = CONFIG.colors.white; // eyes
+
+          // Hit flash: render white
+          if (c.hitFlash > 0) color = CONFIG.colors.white;
+
+          ctx.fillStyle = color;
+          ctx.fillRect(
+            ox + cc * cellW,
+            oy + r * cellH,
+            cellW + 0.5,
+            cellH + 0.5
+          );
+        }
+      }
+
+      // Crab health bar (always visible)
+      const barW = c.size;
+      const barH = 4;
+      const barX = c.x - barW / 2;
+      const barY = oy - 8;
+      const hpRatio = c.hp / c.maxHp;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+      ctx.fillStyle = hpRatio > 0.5 ? CONFIG.colors.green :
+                      hpRatio > 0.25 ? CONFIG.colors.gold : CONFIG.colors.red;
+      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+
+      ctx.strokeStyle = CONFIG.colors.white;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barW, barH);
+    }
+  }
+
+  function killCrab(c, x, y) {
+    c.alive = false;
+    const idx = crabEnemies.indexOf(c);
+    if (idx >= 0) crabEnemies.splice(idx, 1);
+
+    // Ink splatter + explosion
+    Particles.spawnInkSplatter(x, y, c.color, c.type);
+    Particles.spawnExplosion(x, y, c.type);
+    AudioSys.playExplosion(c.type);
+
+    // 20% chance to drop powerup
+    if (Math.random() < 0.2) {
+      return { x, y };
+    }
+    return null;
+  }
+
+  function getCrabEnemies() {
+    return crabEnemies.filter(c => c.alive);
   }
 
   function update(dt) {
@@ -537,7 +685,7 @@ const Enemies = (() => {
   function getInkBlobs() { return inkBlobs; }
   function getEnemyLasers() { return enemyLasers; }
   function setLevel(lvl) { currentLevel = lvl; }
-  function clear() { list = []; inkBlobs = []; enemyLasers = []; }
+  function clear() { list = []; inkBlobs = []; enemyLasers = []; crabEnemies = []; }
   function isEmpty() { return list.filter(e => e.alive).length === 0; }
 
   // For start screen preview
@@ -570,6 +718,11 @@ const Enemies = (() => {
     spawnWaveRandom,
     spawnBoss,
     spawnMiniSwarm,
+    createCrabEnemy,
+    updateCrabs,
+    drawCrabs,
+    killCrab,
+    getCrabEnemies,
     getRows,
     getCols,
     update,
