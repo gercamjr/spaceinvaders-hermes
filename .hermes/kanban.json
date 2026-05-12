@@ -1,0 +1,63 @@
+{
+  "columns": {
+    "backlog": {
+      "title": "Backlog",
+      "cards": [
+        {
+          "id": "mobile-responsive-01",
+          "title": "Make it mobile friendly (responsive, touch support, etc)",
+          "column": "backlog",
+          "labels": [
+            "mobile"
+          ],
+          "body": "- Add viewport meta tag and responsive canvas sizing\n- Implement touch event handlers (touchstart, touchmove, touchend) to replace mouse events on mobile\n- Prevent default touch behaviors (scroll, zoom) during gameplay\n- Auto-fire on touch (don't require holding)\n- Scale UI elements for smaller screens\n- Test on both portrait and landscape orientations\n- Add mobile-specific CSS (cursor: default on touch devices, hide HUD elements on very small screens)",
+          "status": "backlog"
+        },
+        {
+          "id": "bg-music-02",
+          "title": "Create background music",
+          "column": "backlog",
+          "labels": [
+            "audio"
+          ],
+          "body": "- Add procedural background music loop via Web Audio API\n- Create a subtle ambient synth track (no external files)\n- Use short looping pattern (2-4 measures) with layered oscillators\n- Add volume control / mute toggle in UI\n- BGM should fade out during Game Over, resume on new game\n- Ensure BGM doesn't overpower laser/explosion sounds",
+          "status": "backlog"
+        },
+        {
+          "id": "enemy-rows-03",
+          "title": "Change enemy generation to groups of rows",
+          "column": "backlog",
+          "labels": [
+            "gameplay"
+          ],
+          "body": "- Replace random wave spawning with structured row-based formations\n- Spawn enemies in grid-like rows (classic Space Invaders style)\n- Rows descend gradually toward the player\n- Each row can contain different enemy types (e.g., front row = babies, back row = mediums)\n- Boss still appears every 5 levels (no rows, just single boss + mini-swarm)\n- Update level progression logic for row clear conditions\n- Keep sine wave movement for individual enemies within the row formation",
+          "status": "backlog"
+        },
+        {
+          "id": "enemy-lasers-04",
+          "title": "Enemies shoot lasers toward player and damage player upon hit",
+          "column": "backlog",
+          "labels": [
+            "combat"
+          ],
+          "body": "- Implement enemy laser system: enemies periodically fire toward player position\n- Small octopus fires straight down\n- Medium octopus fires aimed shots toward player\n- Boss has rapid-fire multi-laser barrage (in addition to existing ink blobs)\n- Collision detection: enemy laser vs player circle\n- On hit: player takes damage (10 HP), invulnTimer triggers, screen flash, shake\n- Visual: red laser trails, spawn particle sparks on impact\n- Audio: short distinct enemy-fire sound (pitch down sweep)\n- Difficulty scales with level (fire rate increases, accuracy improves)",
+          "status": "backlog"
+        }
+      ]
+    },
+    "in_progress": {
+      "title": "In Progress",
+      "cards": []
+    },
+    "done": {
+      "title": "Done",
+      "cards": []
+    }
+  },
+  "labels": {
+    "mobile": "Mobile-friendly (responsive, touch support)",
+    "audio": "Background music",
+    "gameplay": "Gameplay enhancement",
+    "combat": "Combat mechanics"
+  }
+}
