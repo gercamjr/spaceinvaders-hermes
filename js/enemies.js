@@ -512,6 +512,57 @@ const Enemies = (() => {
         }
       }
 
+      // Mine layer: drops mines every few seconds
+      if (e.type === 'mine' && !e.entering) {
+        e.mineTimer -= dt;
+        if (e.mineTimer <= 0) {
+          mines.push({
+            x: e.x,
+            y: e.y + e.size / 2 + 5,
+            radius: 10,
+            damage: 20,
+            life: 1,
+            alpha: 1,
+            timer: 0,
+            armed: false
+          });
+          e.mineTimer = 2000 + Math.random() * 1000;
+        }
+      }
+
+      // Teleporter: teleports to random position every 3-5 seconds
+      if (e.type === 'teleporter' && !e.entering) {
+        e.teleportTimer -= dt;
+        if (!e.teleporting && e.teleportTimer <= 0) {
+          e.teleporting = true;
+          e.teleportPhase = 'fade';
+          e.teleportAlpha = 1;
+          e.teleportTimer = 0.5;
+        }
+        if (e.teleporting) {
+          if (e.teleportPhase === 'fade') {
+            e.teleportAlpha -= dt * 3;
+            if (e.teleportAlpha <= 0) {
+              e.teleportAlpha = 0;
+              e.teleportPhase = 'teleport';
+              e.x = e.size + Math.random() * (window.innerWidth - e.size * 2);
+              e.y = 60 + Math.random() * (window.innerHeight * 0.5);
+              Particles.spawnTeleportEffect(e.x, e.y, e.color, true);
+              e.teleportPhase = 'appear';
+              e.teleportTimer = 3;
+            }
+          } else if (e.teleportPhase === 'appear') {
+            e.teleportAlpha += dt * 3;
+            if (e.teleportAlpha >= 1) {
+              e.teleportAlpha = 1;
+              e.teleporting = false;
+              e.teleportPhase = '';
+              Particles.spawnTeleportEffect(e.x, e.y, e.color, false);
+            }
+          }
+        }
+      }
+
       // Enemy laser firing with level-scaled difficulty
       const levelMult = 1 + (currentLevel - 1) * 0.1;
 

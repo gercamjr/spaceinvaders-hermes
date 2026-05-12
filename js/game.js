@@ -287,6 +287,28 @@ const Game = (() => {
     return width / 960;
   }
 
+  // Slider drag for mobile (only x coordinate needed)
+  function handleSliderDrag(cx) {
+    const s = getScale();
+    const barWidth = Math.min(s * 300, canvas.width * 0.5);
+    const sliderX = canvas.width / 2 - barWidth / 2 - s * 100 + (s * 20 * 9) + 10;
+
+    // Determine which slider is active by proximity (use current y position)
+    // We check both sliders and update whichever is closer
+    if (cx >= sliderX && cx <= sliderX + barWidth) {
+      const pct = Math.max(0, Math.min(1, (cx - sliderX) / barWidth));
+      // Default to whichever isn't at 0
+      if (bgmVolume > 0 || sfxVolume === 0) {
+        bgmVolume = pct;
+        if (!isMuted) AudioSys.setBGMVolume(pct);
+      } else {
+        sfxVolume = pct;
+        if (!isMuted) AudioSys.setSFXVolume(pct);
+      }
+      persistSettings();
+    }
+  }
+
   function onMouseUp() {
     mouseDown = false;
   }
@@ -295,11 +317,27 @@ const Game = (() => {
   function onTouchStart(e) {
     e.preventDefault();
     if (state === 'PAUSED') return; // paused — ignore touch gestures
+
+    // SETTINGS state: handle settings clicks via touch
+    if (state === 'SETTINGS') {
+      if (e.touches.length > 0) {
+        handleSettingsClick(e.touches[0].clientX, e.touches[0].clientY);
+      }
+      return;
+    }
+
     handleStart(e);
   }
 
   function onTouchMove(e) {
     e.preventDefault();
+    // Handle slider dragging in settings when user is dragging on the screen
+    if (state === 'SETTINGS') {
+      if (e.touches.length > 0) {
+        handleSliderDrag(e.touches[0].clientX);
+      }
+      return;
+    }
     if (state === 'PAUSED') return;
     if (e.touches.length > 0) {
       const touch = e.touches[0];
@@ -847,6 +885,12 @@ const Game = (() => {
 
     if (state === 'MENU') {
       UI.drawStartScreen(ctx);
+      ctx.restore();
+      return;
+    }
+
+    if (state === 'SETTINGS') {
+      UI.drawSettingsScreen(ctx, bgmVolume, sfxVolume, isMuted);
       ctx.restore();
       return;
     }
