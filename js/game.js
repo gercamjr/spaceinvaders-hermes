@@ -24,7 +24,12 @@ const Game = (() => {
   let mouseY = window.innerHeight - 100;
   let mouseDown = false;
 
+  // Mobile: auto-fire after initial touch (don't require holding tap)
+  let mobileAutoFiring = false;
+
   // Wave management
+  let waveSpawnTimer = 0;
+  let waveEnemiesSpawned = 0;
   let waveEnemiesTotal = 0;
   let bossSpawned = false;
   let miniSwarmSpawned = false;
@@ -43,8 +48,7 @@ const Game = (() => {
   function init() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvas();
     ctx.imageSmoothingEnabled = false;
 
     Background.init();
@@ -53,6 +57,7 @@ const Game = (() => {
 
     // Event listeners
     window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('click', onClick);
@@ -60,14 +65,28 @@ const Game = (() => {
     window.addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('keydown', onKeyDown);
 
+    // Touch event handlers — always register (lightweight, no-op on desktop)
+    window.addEventListener('touchstart', onTouchStart, { passive: false });
+    window.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    window.addEventListener('touchend',   onTouchEnd,   { passive: false });
+    window.addEventListener('touchcancel', onTouchEnd,  { passive: false });
+
     // Start loop
     lastTime = performance.now();
     loop(lastTime);
   }
 
+  function resizeCanvas() {
+    // Use visualViewport if available (handles mobile keyboard overlap),
+    // otherwise fall back to window dimensions.  The CSS makes the canvas
+    // fill the viewport; here we set the INTERNAL (drawing) resolution.
+    const vp = window.visualViewport;
+    canvas.width  = vp ? vp.width  : window.innerWidth;
+    canvas.height = vp ? vp.height : window.innerHeight;
+  }
+
   function onResize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvas();
     // Re-initialize background for new dimensions
     Background.init();
   }
@@ -81,8 +100,19 @@ const Game = (() => {
   }
 
   function handleStart(e) {
-    e.preventDefault();
+    // e may be a MouseEvent or TouchEvent
+    if (e.touches && e.touches.length > 0) {
+      mouseX = e.touches[0].clientX;
+      mouseY = e.touches[0].clientY;
+    } else if (e.clientX !== undefined) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    }
+    Background.setMouse(mouseX, mouseY);
+    Player.setMouse(mouseX, mouseY);
+
     mouseDown = true;
+    mobileAutoFiring = true;
     AudioSys.init();
     AudioSys.resume();
 
@@ -95,6 +125,7 @@ const Game = (() => {
   }
 
   function onMouseDown(e) {
+    if (isMobile()) { e.preventDefault(); }
     handleStart(e);
   }
 
@@ -106,6 +137,31 @@ const Game = (() => {
 
   function onMouseUp() {
     mouseDown = false;
+  }
+
+  // --- Touch handlers ---
+  function onTouchStart(e) {
+    e.preventDefault();
+    if (state === 'PAUSED') return; // paused — ignore touch gestures
+    handleStart(e);
+  }
+
+  function onTouchMove(e) {
+    e.preventDefault();
+    if (state === 'PAUSED') return;
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      mouseX = touch.clientX;
+      mouseY = touch.clientY;
+      Background.setMouse(mouseX, mouseY);
+      Player.setMouse(mouseX, mouseY);
+    }
+  }
+
+  function onTouchEnd(e) {
+    // On mobile, auto-fire persists after initial touch — only stop movement tracking
+    mouseDown = false;
+    // mobileAutoFiring stays true so the ship keeps firing without holding
   }
 
   function onKeyDown(e) {
@@ -126,12 +182,14 @@ const Game = (() => {
     enemiesKilled = 0;
     bullets = [];
     powerups = [];
-    waveEnemiesTotal = 0;
+    waveSpawnTimer = 0;
+    waveEnemiesSpawned = 0;
     bossSpawned = false;
     miniSwarmSpawned = false;
     shakeIntensity = 0;
     shakeDuration = 0;
     flashAlpha = 0;
+    mobileAutoFiring = false;
     Enemies.clear();
     Particles.clear();
     Player.reset();
@@ -139,25 +197,27 @@ const Game = (() => {
 
   function startGame() {
     state = 'PLAYING';
+    AudioSys.startBGM();
     spawnWave();
   }
 
   function spawnWave() {
-    // Boss level: spawn boss + mini-swarm immediately
+    const count = CONFIG.waves.baseCount + Math.floor(level * CONFIG.waves.countPerLevel);
+    waveEnemiesTotal = count;
+    waveEnemiesSpawned = 0;
+    waveSpawnTimer = 0;
+
+    // Boss level warning
     if (level % CONFIG.boss.interval === 0) {
-      bossSpawned = true;
       miniSwarmSpawned = true;
       Enemies.spawnMiniSwarm();
-      Enemies.spawnBoss(level);
-      waveEnemiesTotal = 0; // boss levels use bossSpawned flag for advancement
-      return;
     }
 
-    // Non-boss levels: row-based formation spawns instantly
-    Enemies.spawnWave(level);
-    const rows = Enemies.getRows(level);
-    const cols = Enemies.getCols(level);
-    waveEnemiesTotal = rows * cols;
+    // Spawn boss directly on boss levels
+    if (level % CONFIG.boss.interval === 0) {
+      bossSpawned = true;
+      Enemies.spawnBoss(level);
+    }
   }
 
   function advanceLevel(now) {
@@ -224,8 +284,8 @@ const Game = (() => {
     // Update player
     Player.update(dt, now);
 
-    // Shooting
-    if (mouseDown && Player.isAlive()) {
+    // Shooting — on mobile auto-fire after initial touch (no hold needed)
+    if ((mouseDown || (isMobile() && mobileAutoFiring)) && Player.isAlive()) {
       const newBullets = Player.shoot(now);
       bullets.push(...newBullets);
     }
@@ -273,6 +333,25 @@ const Game = (() => {
 
     // Update enemies
     Enemies.update(dt);
+
+    // Wave spawning - spawn enemies one at a time over time
+    if (!bossSpawned) {
+      waveSpawnTimer += dt;
+      if (waveSpawnTimer >= CONFIG.waves.spawnInterval && waveEnemiesSpawned < waveEnemiesTotal) {
+        const r = Math.random();
+        let type;
+        if (level >= 3 && r < 0.25) {
+          type = 'medium';
+        } else if (r < 0.6) {
+          type = 'small';
+        } else {
+          type = 'baby';
+        }
+        Enemies.spawnOne(type, level);
+        waveEnemiesSpawned++;
+        waveSpawnTimer = 0;
+      }
+    }
 
     // --- Bullet vs Enemy collision ---
     for (let bi = bullets.length - 1; bi >= 0; bi--) {
@@ -412,8 +491,8 @@ const Game = (() => {
     }
 
     // --- Level progression (two paths to avoid double-advancing) ---
-    // Non-boss levels: advance when all enemies cleared (row formation spawns instantly)
-    if (!bossSpawned && waveEnemiesTotal > 0 && Enemies.isEmpty()) {
+    // Non-boss levels: advance when wave is fully spawned and all enemies cleared
+    if (Enemies.isEmpty() && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
       advanceLevel(now);
     }
     // Boss levels: advance when boss (and all mini-swarm) is cleared

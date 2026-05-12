@@ -14,6 +14,37 @@ const AudioSys = (() => {
   let unleashGain = null;
   let initialized = false;
 
+  // --- BGM state ---
+  let bgmGain = null;
+  let bgmBassOsc = null;
+  let bgmBassGain = null;
+  let bgmLoopTimer = null;
+  let bgmVolume = 0.5;
+  let bgmRunning = false;
+
+  // --- BGM configuration ---
+  const BGM_BPM = 120;
+  const BGM_BEAT = 60 / BGM_BPM; // 0.5s per beat
+  const BGM_LOOP_BEATS = 16; // 4 measures of 4 beats
+  const BGM_LOOP_DURATION = BGM_LOOP_BEATS * BGM_BEAT; // 8s loop
+
+  // Arpeggio pattern (frequencies in Hz, 0 = rest)
+  // A minor ascent/descent across 4 measures
+  const ARP_PATTERN = [
+    55,      65.41,   82.41,   110,     // M1: ascending
+    130.81,  164.81,  220,     164.81,  // M2: peak
+    130.81,  110,     82.41,   65.41,   // M3: descending
+    55,      73.42,   98,      0         // M4: turnaround (rest on last beat)
+  ];
+
+  // Percussion pattern (1 = hit, 0 = silent) - subtle hi-hat
+  const PERC_PATTERN = [
+    1, 0, 1, 0,
+    1, 0, 1, 0,
+    1, 0, 1, 0,
+    1, 0, 1, 1
+  ];
+
   function init() {
     if (initialized) return;
     try {
@@ -200,6 +231,108 @@ const AudioSys = (() => {
     }
   }
 
+  // --- Procedural Background Music (BGM) ---
+
+  function startBGM(vol) {
+    if (!ctx || bgmRunning) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    bgmVolume = vol !== undefined ? vol : 0.5;
+    bgmRunning = true;
+
+    // BGM master gain
+    bgmGain = ctx.createGain();
+    bgmGain.gain.value = bgmVolume;
+    bgmGain.connect(masterGain);
+
+    // Bass pad - continuous sine at 55Hz
+    bgmBassOsc = ctx.createOscillator();
+    bgmBassOsc.type = 'sine';
+    bgmBassOsc.frequency.value = 55;
+    bgmBassGain = ctx.createGain();
+    bgmBassGain.gain.value = 0.06;
+    bgmBassOsc.connect(bgmBassGain);
+    bgmBassGain.connect(bgmGain);
+    bgmBassOsc.start();
+
+    // Start scheduling loop
+    scheduleBgmLoop();
+  }
+
+  function stopBGM() {
+    bgmRunning = false;
+    if (bgmLoopTimer) {
+      clearTimeout(bgmLoopTimer);
+      bgmLoopTimer = null;
+    }
+    if (bgmBassOsc) {
+      try { bgmBassOsc.stop(); } catch (_) {}
+      bgmBassOsc = null;
+    }
+    if (bgmGain) {
+      try { bgmGain.disconnect(); } catch (_) {}
+      bgmGain = null;
+    }
+    bgmBassGain = null;
+  }
+
+  function setBGMVolume(vol) {
+    bgmVolume = Math.max(0, Math.min(1, vol));
+    if (bgmGain && ctx) {
+      bgmGain.gain.setValueAtTime(bgmVolume, ctx.currentTime);
+    }
+  }
+
+  function scheduleBgmLoop() {
+    if (!bgmRunning || !ctx) return;
+    const now = ctx.currentTime;
+
+    // Schedule arpeggio notes (triangle wave, one per beat)
+    ARP_PATTERN.forEach((freq, i) => {
+      if (freq === 0) return;
+      const t = now + i * BGM_BEAT;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.08, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + BGM_BEAT * 0.8);
+      osc.connect(gain);
+      gain.connect(bgmGain);
+      osc.start(t);
+      osc.stop(t + BGM_BEAT);
+    });
+
+    // Noise buffer for percussion (short noise burst)
+    const noiseBufSize = ctx.sampleRate * 0.1;
+    const noiseBuffer = ctx.createBuffer(1, noiseBufSize, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseBufSize; i++) {
+      noiseData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noiseBufSize, 3);
+    }
+
+    // Schedule percussion hits (highpass-filtered noise)
+    PERC_PATTERN.forEach((hit, i) => {
+      if (!hit) return;
+      const t = now + i * BGM_BEAT;
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const nGain = ctx.createGain();
+      nGain.gain.setValueAtTime(0.04, t);
+      nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 6000;
+      noise.connect(filter);
+      filter.connect(nGain);
+      nGain.connect(bgmGain);
+      noise.start(t);
+    });
+
+    // Schedule next loop iteration
+    bgmLoopTimer = setTimeout(scheduleBgmLoop, BGM_LOOP_DURATION * 1000 - 100);
+  }
+
   return {
     init,
     resume,
@@ -209,6 +342,9 @@ const AudioSys = (() => {
     playPowerup,
     startUnleashDrone,
     stopUnleashDrone,
-    playBossAlarm
+    playBossAlarm,
+    startBGM,
+    stopBGM,
+    setBGMVolume
   };
 })();
