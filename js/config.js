@@ -3,6 +3,13 @@
  * Color palette, speeds, enemy stats, sizes, upgrade tiers, etc.
  */
 
+// Mobile detection helper — callable before CONFIG is referenced elsewhere
+function isMobile() {
+  return 'ontouchstart' in window ||
+         navigator.maxTouchPoints > 0 ||
+         /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 const CONFIG = {
   // --- Colors ---
   colors: {

@@ -125,6 +125,46 @@ const Enemies = (() => {
     });
   }
 
+  // Enemy formation helpers (exposed for game.js wave counting)
+  function getRows(level) {
+    return Math.min(2 + Math.floor(level / 2), 6);
+  }
+
+  function getCols(level) {
+    return Math.min(3 + Math.floor(level / 3), 8);
+  }
+
+  // Spawn enemies in a grid-like row formation (Space Invaders style)
+  // Each row has the same enemy type; different rows get different types.
+  // Rows descend toward the player with sine-wave movement per enemy.
+  function spawnWave(level) {
+    const rows = getRows(level);
+    const cols = getCols(level);
+    const hSpacing = 80;
+    const vSpacing = 60;
+    const formationW = (cols - 1) * hSpacing;
+    const formationH = (rows - 1) * vSpacing;
+    const startX = window.innerWidth / 2 - formationW / 2;
+    // Start formation well above the screen, centered horizontally
+    const startY = -100 - formationH / 2;
+
+    // Types per row cycle: medium, small, baby, medium, small, baby
+    const typeCycle = ['medium', 'small', 'baby', 'medium', 'small', 'baby'];
+
+    for (let row = 0; row < rows; row++) {
+      const rowType = typeCycle[row % typeCycle.length];
+      const rowY = startY + row * vSpacing;
+
+      for (let col = 0; col < cols; col++) {
+        const enemyX = startX + col * hSpacing;
+        const enemy = createEnemy(rowType, enemyX, rowY, level);
+        // Override targetY so each row enters to its proper formation Y
+        enemy.targetY = startY + row * vSpacing;
+        list.push(enemy);
+      }
+    }
+  }
+
   function spawnOne(type, level) {
     const size = CONFIG.enemySizes[type];
     const x = Math.random() * (window.innerWidth - size * 2) + size;
@@ -132,7 +172,7 @@ const Enemies = (() => {
     list.push(enemy);
   }
 
-  function spawnWave(level) {
+  function spawnWaveRandom(level) {
     const count = CONFIG.waves.baseCount + Math.floor(level * CONFIG.waves.countPerLevel);
     for (let i = 0; i < count; i++) {
       const r = Math.random();
@@ -410,8 +450,11 @@ const Enemies = (() => {
     createEnemy,
     spawnOne,
     spawnWave,
+    spawnWaveRandom,
     spawnBoss,
     spawnMiniSwarm,
+    getRows,
+    getCols,
     update,
     draw,
     killEnemy,

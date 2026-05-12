@@ -25,8 +25,6 @@ const Game = (() => {
   let mouseDown = false;
 
   // Wave management
-  let waveSpawnTimer = 0;
-  let waveEnemiesSpawned = 0;
   let waveEnemiesTotal = 0;
   let bossSpawned = false;
   let miniSwarmSpawned = false;
@@ -128,8 +126,7 @@ const Game = (() => {
     enemiesKilled = 0;
     bullets = [];
     powerups = [];
-    waveSpawnTimer = 0;
-    waveEnemiesSpawned = 0;
+    waveEnemiesTotal = 0;
     bossSpawned = false;
     miniSwarmSpawned = false;
     shakeIntensity = 0;
@@ -146,22 +143,21 @@ const Game = (() => {
   }
 
   function spawnWave() {
-    const count = CONFIG.waves.baseCount + Math.floor(level * CONFIG.waves.countPerLevel);
-    waveEnemiesTotal = count;
-    waveEnemiesSpawned = 0;
-    waveSpawnTimer = 0;
-
-    // Boss level warning
-    if (level % CONFIG.boss.interval === 0) {
-      miniSwarmSpawned = true;
-      Enemies.spawnMiniSwarm();
-    }
-
-    // Spawn boss directly on boss levels
+    // Boss level: spawn boss + mini-swarm immediately
     if (level % CONFIG.boss.interval === 0) {
       bossSpawned = true;
+      miniSwarmSpawned = true;
+      Enemies.spawnMiniSwarm();
       Enemies.spawnBoss(level);
+      waveEnemiesTotal = 0; // boss levels use bossSpawned flag for advancement
+      return;
     }
+
+    // Non-boss levels: row-based formation spawns instantly
+    Enemies.spawnWave(level);
+    const rows = Enemies.getRows(level);
+    const cols = Enemies.getCols(level);
+    waveEnemiesTotal = rows * cols;
   }
 
   function advanceLevel(now) {
@@ -277,25 +273,6 @@ const Game = (() => {
 
     // Update enemies
     Enemies.update(dt);
-
-    // Wave spawning - spawn enemies one at a time over time
-    if (!bossSpawned) {
-      waveSpawnTimer += dt;
-      if (waveSpawnTimer >= CONFIG.waves.spawnInterval && waveEnemiesSpawned < waveEnemiesTotal) {
-        const r = Math.random();
-        let type;
-        if (level >= 3 && r < 0.25) {
-          type = 'medium';
-        } else if (r < 0.6) {
-          type = 'small';
-        } else {
-          type = 'baby';
-        }
-        Enemies.spawnOne(type, level);
-        waveEnemiesSpawned++;
-        waveSpawnTimer = 0;
-      }
-    }
 
     // --- Bullet vs Enemy collision ---
     for (let bi = bullets.length - 1; bi >= 0; bi--) {
@@ -435,8 +412,8 @@ const Game = (() => {
     }
 
     // --- Level progression (two paths to avoid double-advancing) ---
-    // Non-boss levels: advance when wave is fully spawned and all enemies cleared
-    if (Enemies.isEmpty() && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
+    // Non-boss levels: advance when all enemies cleared (row formation spawns instantly)
+    if (!bossSpawned && waveEnemiesTotal > 0 && Enemies.isEmpty()) {
       advanceLevel(now);
     }
     // Boss levels: advance when boss (and all mini-swarm) is cleared
