@@ -71,8 +71,8 @@ const CONFIG = {
 
   // --- Waves ---
   waves: {
-    baseCount: 5,
-    countPerLevel: 2,
+    baseCount: 12,
+    countPerLevel: 4,
     spawnInterval: 1500,  // ms between spawns
     speedScale: 1.15       // speed multiplier per level
   },

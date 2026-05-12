@@ -84,6 +84,7 @@ const Enemies = (() => {
     small:  SMALL_GRID,
     medium: MEDIUM_GRID,
     baby:   BABY_GRID,
+    crab:   CRAB_GRID,
     boss:   BOSS_GRID
   };
 
