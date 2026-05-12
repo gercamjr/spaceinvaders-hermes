@@ -572,6 +572,16 @@ const Game = (() => {
         const enemyR = e.size / 2;
 
         if (circleCollision(b.x, b.y, bulletR, e.x, e.y, enemyR)) {
+          // Shielded drone: only damageable from sides/back, not from front
+          if (e.type === 'shield' && e.shieldFacing) {
+            // Shield faces upward (front)
+            // Bullet coming from above = blocked
+            if (b.vy < 0 && b.y < e.y - e.size * 0.1) {
+              // Block! Show deflection sparks
+              Particles.spawnSparks(b.x, b.y, 3);
+              break;
+            }
+          }
           // Hit!
           e.hitFlash = 3;
           e.hp -= b.damage;
@@ -773,6 +783,26 @@ const Game = (() => {
           }
         }
       }
+
+      // Player vs dropped mines
+      for (let i = Enemies.getMines().length - 1; i >= 0; i--) {
+        const mine = Enemies.getMines()[i];
+        if (mine.armed && circleCollision(pPos.x, pPos.y, Player.getRadius(), mine.x, mine.y, mine.radius)) {
+          Player.takeDamage(mine.damage);
+          flashAlpha = 0.25;
+          triggerShake(6, 120);
+          Particles.spawnExplosion(mine.x, mine.y, 'small');
+          Enemies.getMines().splice(i, 1);
+          combo = 1;
+          comboTimer = 0;
+          if (!Player.isAlive()) {
+            state = 'GAMEOVER';
+            AudioSys.stopBGM();
+            Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
+            AudioSys.playExplosion('boss');
+          }
+        }
+      }
     }
 
     // --- Powerup collection ---
@@ -929,6 +959,9 @@ const Game = (() => {
 
     // Crabby Squid enemies
     Enemies.drawCrabs(ctx);
+
+    // Dropped mines
+    Enemies.drawMines(ctx);
 
     // Player
     Player.draw(ctx);

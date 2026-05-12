@@ -830,6 +830,8 @@ const Enemies = (() => {
     }
   }
 
+  function getMines() { return mines; }
+
   function killEnemy(e, x, y) {
     e.alive = false;
     const idx = list.indexOf(e);
@@ -921,7 +923,10 @@ const Enemies = (() => {
     spawnCrab,
     recordMediumKill,
     updateCrabs,
+    drawMines,
     drawCrabs,
+    getMines,
+    killCrab,
     killCrab,
     getCrabEnemies,
     getRows,
