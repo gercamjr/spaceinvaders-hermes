@@ -50,7 +50,10 @@ const CONFIG = {
     medium: 48,
     baby: 20,
     crab: 30,
-    boss: 150
+    boss: 150,
+    shield: 40,
+    mine: 30,
+    teleporter: 35
   },
 
   // --- Enemy stats ---
@@ -59,7 +62,11 @@ const CONFIG = {
     medium: { hp: 25, speed: 1.0, score: 25, color: '#4DA6FF' },
     baby:   { hp: 5,  speed: 2.5, score: 5,  color: '#00FFFF' },
     crab:   { hp: 15, speed: 2.0, score: 15, color: '#FF8800' },
-    boss:   { hp: 500, speed: 0.5, score: 500, color: '#C77DFF' }
+    boss:   { hp: 500, speed: 0.5, score: 500, color: '#C77DFF' },
+    // New enemy types
+    shield:       { hp: 30, speed: 1.2, score: 20, color: '#4A90D9' },
+    mine:         { hp: 8,  speed: 0.8, score: 15, color: '#FF6600' },
+    teleporter:   { hp: 12, speed: 1.8, score: 25, color: '#AA44AA' }
   },
 
   // --- Boss ---
@@ -85,11 +92,14 @@ const CONFIG = {
 
   // --- Screen shake ---
   shake: {
-    small:  { intensity: 3,  duration: 100 },
-    medium: { intensity: 5,  duration: 150 },
-    baby:   { intensity: 2,  duration: 80  },
-    crab:   { intensity: 3,  duration: 100 },
-    boss:   { intensity: 12, duration: 400 }
+    small:       { intensity: 3,  duration: 100 },
+    medium:      { intensity: 5,  duration: 150 },
+    baby:        { intensity: 2,  duration: 80  },
+    crab:        { intensity: 3,  duration: 100 },
+    boss:        { intensity: 12, duration: 400 },
+    shield:      { intensity: 4,  duration: 120 },
+    mine:        { intensity: 3,  duration: 80  },
+    teleporter:  { intensity: 3,  duration: 100 }
   },
 
   // --- Background ---
@@ -104,7 +114,11 @@ const CONFIG = {
   powerup: {
     radius: 12,
     fallSpeed: 1.5,
-    glowPulse: 0.03
+    glowPulse: 0.03,
+    types: ['unleash', 'shield', 'speedBoost'],
+    shieldDuration: 5000,       // ms of invulnerability
+    speedBoostDuration: 8000,   // ms of faster movement
+    speedBoostMultiplier: 1.6   // movement speed multiplier
   },
 
   // --- HUD ---
@@ -115,5 +129,13 @@ const CONFIG = {
     padding: 20,
     healthBarWidth: 200,
     healthBarHeight: 14
+  },
+
+  // --- Default Audio Settings ---
+  settings: {
+    bgmVolume: 0.5,
+    sfxVolume: 0.8,
+    isMuted: false,
+    storageKey: 'octopusInvadersSettings'
   }
 };

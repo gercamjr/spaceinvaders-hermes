@@ -1,6 +1,6 @@
 /**
  * game.js - Main game loop, state machine, collision detection
- * States: MENU, PLAYING, PAUSED, GAMEOVER
+ * States: MENU, SETTINGS, PLAYING, PAUSED, GAMEOVER
  * Handles: wave spawning, bullet updates, collision detection,
  * damage numbers, screen shake, combo system, powerup drops.
  */
@@ -8,9 +8,15 @@
 const Game = (() => {
   let canvas = null;
   let ctx = null;
-  let state = 'MENU'; // MENU | PLAYING | PAUSED | GAMEOVER
+  let state = 'MENU'; // MENU | SETTINGS | PLAYING | PAUSED | GAMEOVER
+  let previousState = 'MENU'; // track where to return from settings
   let lastTime = 0;
   let animFrame = null;
+
+  // Settings
+  let bgmVolume = CONFIG.settings.bgmVolume;
+  let sfxVolume = CONFIG.settings.sfxVolume;
+  let isMuted = CONFIG.settings.isMuted;
 
   // Game state
   let score = 0;
@@ -44,6 +50,32 @@ const Game = (() => {
   // Screen flash
   let flashAlpha = 0;
 
+  // Level-up animation
+  let levelUpTimer = 0;
+
+  // Boss warning countdown (3→2→1→spawn)
+  let bossWarningActive = false;
+  let bossWarningTimer = 0; // starts at 3000ms, counts down
+
+  // Boss defeated celebration
+  let bossDefeatedTimer = 0;
+
+  // Pending ship upgrade (flash + particles)
+  let pendingUpgrade = false;
+
+  // --- Settings persistence ---
+  function loadSettings() {
+    AudioSys.loadSettings();
+    const s = AudioSys.getSettings();
+    bgmVolume = s.bgmVolume;
+    sfxVolume = s.sfxVolume;
+    isMuted = s.isMuted;
+  }
+
+  function persistSettings() {
+    AudioSys.saveSettings();
+  }
+
   // --- Init ---
   function init() {
     canvas = document.getElementById('gameCanvas');
@@ -54,6 +86,9 @@ const Game = (() => {
     Background.init();
     Player.init();
     resetGame();
+
+    // Load persisted settings
+    loadSettings();
 
     // Event listeners
     window.addEventListener('resize', onResize);
@@ -130,9 +165,126 @@ const Game = (() => {
   }
 
   function onClick(e) {
-    if (state === 'MENU' || state === 'GAMEOVER') {
+    let cx, cy;
+    if (e.clientX !== undefined) {
+      cx = e.clientX;
+      cy = e.clientY;
+    } else {
+      return;
+    }
+
+    // SETTINGS state: handle slider/mute/back clicks
+    if (state === 'SETTINGS') {
+      handleSettingsClick(cx, cy);
+      return;
+    }
+
+    // MENU state: check settings gear first, then start game
+    if (state === 'MENU') {
+      if (isSettingsGearClick(cx, cy, 'menu')) {
+        previousState = 'MENU';
+        state = 'SETTINGS';
+        return;
+      }
+      handleStart(e);
+      return;
+    }
+
+    // PAUSED state: check settings gear
+    if (state === 'PAUSED') {
+      if (isSettingsGearClick(cx, cy, 'pause')) {
+        previousState = 'PAUSED';
+        state = 'SETTINGS';
+        return;
+      }
+      return;
+    }
+
+    // GAMEOVER state: restart
+    if (state === 'GAMEOVER') {
       handleStart(e);
     }
+  }
+
+  // Check if click is on the settings gear button (generous hit area)
+  function isSettingsGearClick(cx, cy) {
+    const s = getScale();
+    const gearSize = s * 14;
+    const gearX = canvas.width - gearSize * 2;
+    const gearY = canvas.height - gearSize * 2;
+    const hitR = gearSize * 3;
+    const dx = cx - gearX;
+    const dy = cy - gearY;
+    return dx * dx + dy * dy <= hitR * hitR;
+  }
+
+  // --- Settings click handling ---
+  function handleSettingsClick(cx, cy) {
+    // We need to know the exact hitbox positions, so we compute them the same way
+    const s = getScale();
+    const fontSize = s * 20;
+    const barWidth = Math.min(s * 300, canvas.width * 0.5);
+    const titleSize = s * 36;
+    const gapY = s * 60;
+    const startY = canvas.height / 2 - titleSize * 1.2;
+    const labelPixelW = fontSize * 9;
+
+    const sliderX = canvas.width / 2 - barWidth / 2 - s * 100 + labelPixelW + 10;
+    const sliderHitH = s * 40;
+
+    // BGM slider zone
+    const bgmSliderY = startY - sliderHitH / 2;
+    if (cx >= sliderX && cx <= sliderX + barWidth && cy >= bgmSliderY && cy <= bgmSliderY + sliderHitH) {
+      const pct = Math.max(0, Math.min(1, (cx - sliderX) / barWidth));
+      bgmVolume = pct;
+      if (!isMuted) AudioSys.setBGMVolume(pct);
+      persistSettings();
+      return;
+    }
+
+    // SFX slider zone
+    const sfxSliderY = startY + gapY - sliderHitH / 2;
+    if (cx >= sliderX && cx <= sliderX + barWidth && cy >= sfxSliderY && cy <= sfxSliderY + sliderHitH) {
+      const pct = Math.max(0, Math.min(1, (cx - sliderX) / barWidth));
+      sfxVolume = pct;
+      if (!isMuted) AudioSys.setSFXVolume(pct);
+      persistSettings();
+      return;
+    }
+
+    // Mute toggle
+    const muteBtnW = s * 160;
+    const muteBtnH = s * 40;
+    const muteBtnY = startY + gapY * 2;
+    const muteBtnX = canvas.width / 2 - muteBtnW / 2;
+    if (cx >= muteBtnX && cx <= muteBtnX + muteBtnW && cy >= muteBtnY && cy <= muteBtnY + muteBtnH) {
+      isMuted = !isMuted;
+      if (isMuted) {
+        AudioSys.setBGMVolume(0);
+        AudioSys.setSFXVolume(0);
+      } else {
+        AudioSys.setBGMVolume(bgmVolume);
+        AudioSys.setSFXVolume(sfxVolume);
+      }
+      persistSettings();
+      return;
+    }
+
+    // Back button
+    const backBtnW = s * 140;
+    const backBtnH = s * 40;
+    const backBtnY = startY + gapY * 3;
+    const backBtnX = canvas.width / 2 - backBtnW / 2;
+    if (cx >= backBtnX && cx <= backBtnX + backBtnW && cy >= backBtnY && cy <= backBtnY + backBtnH) {
+      state = previousState;
+      persistSettings();
+    }
+  }
+
+  // Helper: get scale factor
+  function getScale() {
+    const width = canvas ? canvas.width : window.innerWidth;
+    return width / 960;
   }
 
   function onMouseUp() {
@@ -170,6 +322,9 @@ const Game = (() => {
         state = 'PAUSED';
       } else if (state === 'PAUSED') {
         state = 'PLAYING';
+      } else if (state === 'SETTINGS') {
+        state = previousState;
+        persistSettings();
       }
     }
   }
@@ -189,6 +344,11 @@ const Game = (() => {
     shakeIntensity = 0;
     shakeDuration = 0;
     flashAlpha = 0;
+    levelUpTimer = 0;
+    bossWarningActive = false;
+    bossWarningTimer = 0;
+    bossDefeatedTimer = 0;
+    pendingUpgrade = false;
     mobileAutoFiring = false;
     Enemies.resetAll();
     Particles.clear();
@@ -197,7 +357,7 @@ const Game = (() => {
 
   function startGame() {
     state = 'PLAYING';
-    AudioSys.startBGM();
+    AudioSys.startBGM(bgmVolume);
     Enemies.setLevel(level);
     spawnWave();
   }
@@ -226,16 +386,28 @@ const Game = (() => {
 
   function advanceLevel(now) {
     level++;
-    Enemies.setLevel(level);
+
+    // Level up animation
+    levelUpTimer = 2000;
+
+    // Check if this is a boss level — start boss warning countdown
     if (level % CONFIG.boss.interval === 0) {
-      bossSpawned = true;
-      Enemies.spawnBoss(level);
+      bossWarningActive = true;
+      bossWarningTimer = 3000;
     } else {
+      // Ship upgrade check (every CONFIG.player.upgradeInterval levels)
       if ((level - 1) % CONFIG.player.upgradeInterval === 0) {
-        Player.upgrade();
+        pendingUpgrade = true;
       }
       spawnWave();
     }
+  }
+
+  function spawnBossAfterWarning(now) {
+    bossWarningActive = false;
+    Enemies.setLevel(level);
+    bossSpawned = true;
+    Enemies.spawnBoss(level);
   }
 
   // --- Collision detection (circle-to-circle) ---
@@ -599,6 +771,53 @@ const Game = (() => {
       if (flashAlpha < 0) flashAlpha = 0;
     }
 
+    // Level-up timer decay
+    if (levelUpTimer > 0) {
+      levelUpTimer -= dt;
+      if (levelUpTimer < 0) levelUpTimer = 0;
+    }
+
+    // Boss warning countdown
+    if (bossWarningActive) {
+      bossWarningTimer -= dt;
+      if (bossWarningTimer <= 0) {
+        // Spawn the boss
+        spawnBossAfterWarning(now);
+      } else if (bossWarningTimer <= 0 && bossWarningTimer > -dt) {
+        // Ensure we don't double-spawn — clamp
+        bossWarningTimer = 0;
+      }
+    }
+
+    // Boss defeated timer decay
+    if (bossDefeatedTimer > 0) {
+      bossDefeatedTimer -= dt;
+      if (bossDefeatedTimer < 0) bossDefeatedTimer = 0;
+    }
+
+    // Ship upgrade visual effect
+    if (pendingUpgrade) {
+      pendingUpgrade = false;
+      Player.upgrade();
+      flashAlpha = 0.6; // flash screen white
+      Particles.spawnUpgradeParticles(Player.getPos().x, Player.getPos().y);
+      AudioSys.playUpgrade();
+    }
+
+    // Boss defeated detection — check when boss was just killed
+    if (bossSpawned && !Enemies.getAlive().some(e => e.type === 'boss') && bossDefeatedTimer === 0 && level >= CONFIG.boss.interval) {
+      bossDefeatedTimer = 2000;
+      flashAlpha = 0.4;
+      triggerShake(12, 400);
+      // Spawn celebration particles
+      const bossEnemy = Enemies.getAlive().find(e => e.type === 'boss');
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 3;
+      for (let i = 0; i < 4; i++) {
+        setTimeout(() => Particles.spawnExplosion(cx + (Math.random()-0.5)*200, cy + (Math.random()-0.5)*100, 'boss'), i * 100);
+      }
+    }
+
     // --- Level progression (two paths to avoid double-advancing) ---
     // Non-boss levels: advance when wave is fully spawned and all enemies cleared
     if (Enemies.isEmpty() && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
@@ -673,12 +892,21 @@ const Game = (() => {
     // Particles
     Particles.draw(ctx);
 
-    // Screen flash (player hit)
+    // Screen flash (player hit / upgrade / effects)
     if (flashAlpha > 0) {
       ctx.globalAlpha = flashAlpha;
       ctx.fillStyle = CONFIG.colors.red;
       ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
       ctx.globalAlpha = 1;
+    }
+
+    // Upgrade flash: overlay white briefly
+    if (pendingUpgrade) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = CONFIG.colors.white;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
     }
 
     // Chromatic aberration during unleash
@@ -695,6 +923,52 @@ const Game = (() => {
     if (state === 'PLAYING' || state === 'PAUSED') {
       UI.drawHUD(ctx, score, level, combo, Player.getHealth(), Player.getMaxHealth(),
         Player.isUnleashing(), Player.isUnleashing() ? performance.now() + 5000 : 0, now);
+    }
+
+    // Low-health vignette — dark red radial gradient from edges
+    if (state === 'PLAYING' && Player.isAlive()) {
+      const healthPct = Player.getHealth() / Player.getMaxHealth();
+      if (healthPct < 0.3) {
+        // alpha: 0 at 30%, 0.5 at 0%
+        const vignetteAlpha = (0.3 - healthPct) / 0.3 * 0.5;
+        const gradient = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
+          canvas.width / 2, canvas.height / 2, canvas.width * 0.7
+        );
+        gradient.addColorStop(0, `rgba(139, 0, 0, 0)`);
+        gradient.addColorStop(1, `rgba(139, 0, 0, ${vignetteAlpha})`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    // Level-up animation
+    if (levelUpTimer > 0) {
+      UI.drawLevelUpText(ctx, levelUpTimer);
+    }
+
+    // Boss warning countdown
+    if (bossWarningActive) {
+      const countdown = Math.ceil(bossWarningTimer / 1000);
+      UI.drawBossWarning(ctx, Math.max(1, Math.min(3, countdown)));
+    }
+
+    // Boss defeated celebration
+    if (bossDefeatedTimer > 0) {
+      UI.drawBossDefeated(ctx, bossDefeatedTimer);
+    }
+
+    // Boss defeated detection — check when boss was just killed
+    if (bossSpawned && !Enemies.getAlive().some(e => e.type === 'boss') && bossDefeatedTimer === 0 && level >= CONFIG.boss.interval) {
+      bossDefeatedTimer = 2000;
+      flashAlpha = 0.4;
+      triggerShake(12, 400);
+      // Celebration particles
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 3;
+      for (let i = 0; i < 4; i++) {
+        setTimeout(() => Particles.spawnExplosion(cx + (Math.random()-0.5)*200, cy + (Math.random()-0.5)*100, 'boss'), i * 100);
+      }
     }
 
     // Game over

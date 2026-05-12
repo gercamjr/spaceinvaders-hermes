@@ -174,16 +174,29 @@ const Particles = (() => {
   }
 
   function spawnDamageNumber(x, y, amount) {
+    // Color coding based on damage amount
+    let color;
+    let fontSize;
+    if (amount >= 20) {
+      color = CONFIG.colors.orange;
+      fontSize = 20;
+    } else if (amount >= 10) {
+      color = CONFIG.colors.yellow;
+      fontSize = 16;
+    } else {
+      color = CONFIG.colors.white;
+      fontSize = 14;
+    }
     create(x, y, {
       vx: 0,
       vy: 0,
-      life: 1,
-      maxLife: 1,
+      life: 0.7,
+      maxLife: 0.7,
       size: 0,
-      color: CONFIG.colors.yellow,
+      color: color,
       type: 'damage',
       text: `-${amount}`,
-      fontSize: 16
+      fontSize: fontSize
     });
   }
 
@@ -197,6 +210,35 @@ const Particles = (() => {
         size: 2,
         color: CONFIG.colors.gold,
         friction: 0.95
+      });
+    }
+  }
+
+  // Particle trail for enemy lasers
+  function spawnEnemyLaserTrail(x, y) {
+    create(x, y, {
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.3,
+      life: 0.2 + Math.random() * 0.1,
+      size: 2 + Math.random() * 2,
+      color: Math.random() > 0.3 ? CONFIG.colors.red : CONFIG.colors.orange,
+      friction: 0.95,
+      type: 'trail'
+    });
+  }
+
+  // Upgrade celebration particles (burst around player)
+  function spawnUpgradeParticles(x, y) {
+    for (let i = 0; i < 24; i++) {
+      const angle = (i / 24) * Math.PI * 2;
+      const speed = 2 + Math.random() * 3;
+      create(x, y, {
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.5 + Math.random() * 0.5,
+        size: 2 + Math.random() * 3,
+        color: CONFIG.colors.rainbow[Math.floor(Math.random() * CONFIG.colors.rainbow.length)],
+        friction: 0.94
       });
     }
   }
@@ -217,6 +259,8 @@ const Particles = (() => {
     spawnLaserHitSparks,
     spawnDamageNumber,
     spawnPowerupSparkle,
+    spawnEnemyLaserTrail,
+    spawnUpgradeParticles,
     clear
   };
 })();

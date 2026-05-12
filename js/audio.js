@@ -247,6 +247,25 @@ const AudioSys = (() => {
     }
   }
 
+  // --- Upgrade celebration sound ---
+  function playUpgrade() {
+    if (!ctx) return;
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.06);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + i * 0.06 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.3);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(ctx.currentTime + i * 0.06);
+      osc.stop(ctx.currentTime + i * 0.06 + 0.35);
+    });
+  }
+
   // --- Procedural Background Music (BGM) ---
 
   function startBGM(vol) {
@@ -349,6 +368,55 @@ const AudioSys = (() => {
     bgmLoopTimer = setTimeout(scheduleBgmLoop, BGM_LOOP_DURATION * 1000 - 100);
   }
 
+  // --- Settings Persistence ---
+
+  function getSettings() {
+    return {
+      bgmVolume: bgmVolume,
+      sfxVolume: masterGain ? masterGain.gain.value / 0.3 : CONFIG.settings.sfxVolume,
+      isMuted: masterGain ? masterGain.gain.value === 0 : CONFIG.settings.isMuted
+    };
+  }
+
+  function loadSettings() {
+    try {
+      const saved = localStorage.getItem(CONFIG.settings.storageKey);
+      if (saved) {
+        const s = JSON.parse(saved);
+        bgmVolume = typeof s.bgmVolume === 'number' ? Math.max(0, Math.min(1, s.bgmVolume)) : CONFIG.settings.bgmVolume;
+        if (masterGain && ctx) {
+          const sfxVol = typeof s.sfxVolume === 'number' ? Math.max(0, Math.min(1, s.sfxVolume) * 0.3) : CONFIG.settings.sfxVolume * 0.3;
+          const muted = s.isMuted === true;
+          masterGain.gain.setValueAtTime(muted ? 0 : sfxVol, ctx.currentTime);
+        }
+        if (bgmGain && ctx) {
+          bgmGain.gain.setValueAtTime(bgmVolume, ctx.currentTime);
+        }
+      }
+    } catch (_) {
+      // fallback to defaults
+    }
+  }
+
+  function saveSettings() {
+    try {
+      const isM = masterGain ? masterGain.gain.value === 0 : false;
+      const sfxRaw = masterGain ? masterGain.gain.value / 0.3 : CONFIG.settings.sfxVolume;
+      localStorage.setItem(CONFIG.settings.storageKey, JSON.stringify({
+        bgmVolume: bgmVolume,
+        sfxVolume: Math.max(0, Math.min(1, sfxRaw)),
+        isMuted: isM
+      }));
+    } catch (_) {}
+  }
+
+  // --- SFX Volume ---
+  function setSFXVolume(vol) {
+    if (!masterGain || !ctx) return;
+    const v = Math.max(0, Math.min(1, vol));
+    masterGain.gain.setValueAtTime(v * 0.3, ctx.currentTime);
+  }
+
   return {
     init,
     resume,
@@ -360,8 +428,13 @@ const AudioSys = (() => {
     startUnleashDrone,
     stopUnleashDrone,
     playBossAlarm,
+    playUpgrade,
     startBGM,
     stopBGM,
-    setBGMVolume
+    setBGMVolume,
+    setSFXVolume,
+    getSettings,
+    loadSettings,
+    saveSettings
   };
 })();

@@ -2,7 +2,78 @@
   "columns": {
     "backlog": {
       "title": "Backlog",
-      "cards": []
+      "cards": [
+        {
+          "id": "polish-08-audio-ui",
+          "title": "Phase 1: Audio Polish & Settings Menu",
+          "column": "backlog",
+          "labels": [
+            "polish"
+          ],
+          "body": "- Add BGM volume slider and SFX volume slider in settings menu\n- Add mute toggle button on HUD\n- Create Settings/Options screen with audio controls\n- Add multiple BGM tracks: calm (menu), tense (gameplay), epic (boss)\n- Add pause screen BGM attenuation (lower volume)\n- Add sound effects: whoosh on hover, power-up collect sound variant, level-up chime",
+          "status": "backlog"
+        },
+        {
+          "id": "polish-08-visual",
+          "title": "Phase 1: Visual Polish & Screen Effects",
+          "column": "backlog",
+          "labels": [
+            "polish"
+          ],
+          "body": "- Add screen flash on boss death, level transition wipe effect\n- Add 'Level Up' text animation with score popup\n- Add 'Boss Incoming!' warning screen with countdown\n- Add damage number styling (bigger numbers, color coding: blue=crit, red=dmg)\n- Add particle trails for enemy lasers and player bullets\n- Add glow/bloom effect during unleash mode\n- Add ship upgrade visual effect (flash, particles, screen shake)\n- Add screen edge vignette effect when player is low on health\n- Add 'Boss Defeated!' celebration effect",
+          "status": "backlog"
+        },
+        {
+          "id": "content-09-enemies",
+          "title": "Phase 1: More Content - Enemies & Weapons",
+          "column": "backlog",
+          "labels": [
+            "content"
+          ],
+          "body": "- Add 3-4 new enemy types: Shielded Drone (blocks shots), Mine Layer, Teleporter, Swarm Spawner\n- Each enemy has unique behavior, health, score, and attack pattern\n- Add 2 new boss variants with different attack phases\n- Add 2 new power-up types: Shield (temporary damage immunity), Speed Boost (faster movement), Slow-Motion (slows time)\n- Add weapon upgrades that persist: Double Shot, Spread Shot, Rapid Fire as permanent unlocks\n- Add enemy variety per level: mix of 3-4 enemy types in formation rows",
+          "status": "backlog"
+        },
+        {
+          "id": "content-10-progression",
+          "title": "Phase 2: Progression System & Save/Load",
+          "column": "backlog",
+          "labels": [
+            "progression"
+          ],
+          "body": "- Add persistent save system (localStorage) for high scores and unlocks\n- Add ship upgrade shop between levels (spend score points on upgrades)\n- Add ship skins/unlockables (color variations, special visual effects)\n- Add achievement system (first kill, level 10, 100 kills, etc.)\n- Add daily/weekly challenges with score multipliers\n- Add game modes: Arcade (finite levels), Endless (infinite, scales difficulty)\n- Add leaderboards (local + online if possible)",
+          "status": "backlog"
+        },
+        {
+          "id": "content-11-structure",
+          "title": "Phase 2: Game Menus & Meta Structure",
+          "column": "backlog",
+          "labels": [
+            "meta"
+          ],
+          "body": "- Restructure game into: Main Menu -> Mode Select -> Game -> Results Screen\n- Main Menu with animated background, Start Game, Endless Mode, Settings, Credits\n- Mode Select: Arcade Campaign, Endless (infinite), Daily Challenge\n- Results screen with detailed stats: enemies killed, accuracy, time survived, rank\n- Add 'Continue' after game over if player has enough score points\n- Add loading screen between sections\n- Add tutorial overlay on first playthrough",
+          "status": "backlog"
+        },
+        {
+          "id": "polish-12-platform",
+          "title": "Phase 3: Platform Readiness & Distribution",
+          "column": "backlog",
+          "labels": [
+            "platform"
+          ],
+          "body": "- Package as PWA (Progressive Web App) with service worker for offline play\n- Add iOS/Android compatibility fixes (safe area insets, orientation locking)\n- Create app icons and splash screens for mobile\n- Add manifest.json for PWA install prompt\n- Test on multiple browsers: Chrome, Firefox, Safari, Edge\n- Add analytics/anonymized usage tracking (optional)\n- Performance audit: optimize rendering, reduce memory usage, ensure 60fps on mobile",
+          "status": "backlog"
+        },
+        {
+          "id": "polish-13-marketing",
+          "title": "Phase 3: Marketing Assets & Distribution Prep",
+          "column": "backlog",
+          "labels": [
+            "marketing"
+          ],
+          "body": "- Add screenshot capture on gameover (canvas.toDataURL for shareable image)\n- Add 'Share Score' functionality (Twitter/X, Facebook, link copy)\n- Create app store listing assets: screenshots, description, feature list\n- Add credits screen with developer info and attribution\n- Add license.txt and copyright notice\n- Prepare distribution packages: itch.io page, Newgrounds, game jam submission\n- Add 'How to Play' tutorial with interactive walkthrough",
+          "status": "backlog"
+        }
+      ]
     },
     "in_progress": {
       "title": "In Progress",
@@ -39,47 +110,6 @@
             "gameplay"
           ],
           "body": "- Replace random wave spawning with structured row-based formations\n- Spawn enemies in grid-like rows (classic Space Invaders style)\n- Rows descend gradually toward the player\n- Each row can contain different enemy types (e.g., front row = babies, back row = mediums)\n- Boss still appears every 5 levels (no rows, just single boss + mini-swarm)\n- Update level progression logic for row clear conditions\n- Keep sine wave movement for individual enemies within the row formation",
-          "status": "backlog"
-        },
-        {
-          "id": "enemy-lasers-04",
-          "title": "Enemies shoot lasers toward player and damage player upon hit",
-          "column": "done",
-          "labels": [
-            "combat"
-          ],
-          "body": "- Implement enemy laser system: enemies periodically fire toward player position\n- Small octopus fires straight down\n- Medium octopus fires aimed shots toward player\n- Boss has rapid-fire multi-laser barrage (in addition to existing ink blobs)\n- Collision detection: enemy laser vs player circle\n- On hit: player takes damage (10 HP), invulnTimer triggers, screen flash, shake\n- Visual: red laser trails, spawn particle sparks on impact\n- Audio: short distinct enemy-fire sound (pitch down sweep)\n- Difficulty scales with level (fire rate increases, accuracy improves)",
-          "status": "backlog"
-        },
-        {
-          "id": "bg-music-louder-05",
-          "title": "Make background music louder",
-          "column": "done",
-          "labels": [
-            "audio"
-          ],
-          "body": "- Increase BGM master gain volume significantly (current: 0.06, target: 0.15-0.2)\n- Increase bass pad gain\n- Increase arpeggio gain\n- Ensure BGM is still balanced with other sounds (not drowning explosions/lasers)\n- Test the overall audio mix in-game",
-          "status": "backlog"
-        },
-        {
-          "id": "more-enemies-06",
-          "title": "Increase amount of enemies per level",
-          "column": "done",
-          "labels": [
-            "gameplay"
-          ],
-          "body": "- Increase rows per level: current formula min(2 + floor(level/2), 6), increase to min(3 + floor(level/2), 8)\n- Increase columns per row: current min(3 + floor(level/3), 8), increase to min(4 + floor(level/3), 10)\n- Optionally add a second set of rows that spawn after first wave is cleared\n- Ensure levels feel progressively harder but fair\n- Balance enemy density so screen is not overcrowded at high levels\n- Test at levels 1, 3, 5, 10 for visual density",
-          "status": "backlog"
-        },
-        {
-          "id": "crab-squid-07",
-          "title": "Create new enemy: Crabby Squid - horizontal traveling crab-like enemy",
-          "column": "done",
-          "labels": [
-            "gameplay",
-            "art"
-          ],
-          "body": "- Define a new enemy type 'crab' in config.js with stats: hp 15, speed 2.0, score 15, color orange (#FF8800)\n- Size: ~30px\n- Create pixel art grid for crab-squid hybrid (8x6 or similar) - should resemble a crab with squid-like features\n- Movement: travels HORIZONTALLY across the screen (left to right or right to left) at random y positions mid-screen\n- On reaching screen edge, reverses direction or exits and respawns from opposite side\n- Animation: side-to-side leg/tentacle wiggle while moving\n- Can fire small projectiles downward while moving\n- Spawns periodically (not in rows) - maybe 1-2 per level, or every few seconds during a level\n- Drop from crabby squid has small chance of powerup\n- Add to pixel art preview on start screen",
           "status": "backlog"
         }
       ]

@@ -81,16 +81,57 @@ const Enemies = (() => {
     [0,0,2,1,1,1,1,1,1,2,0,0],
   ];
 
+  // Shielded Drone: 8x8 grid — angular shield shape with core
+  const SHIELD_GRID = [
+    [0,0,1,1,1,1,0,0],
+    [0,1,1,3,3,1,1,0],
+    [1,1,3,1,1,3,1,1],
+    [1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1],
+    [1,0,1,1,1,1,0,1],
+    [0,1,2,0,0,2,1,0],
+    [0,0,1,0,0,1,0,0]
+  ];
+
+  // Mine Layer: 8x8 grid — round mine-laying ship
+  const MINE_GRID = [
+    [0,0,0,1,1,0,0,0],
+    [0,0,1,3,3,1,0,0],
+    [0,1,3,1,1,3,1,0],
+    [1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1],
+    [0,1,1,2,2,1,1,0],
+    [0,0,1,2,2,1,0,0],
+    [0,0,1,0,0,1,0,0]
+  ];
+
+  // Teleporter: 8x8 grid — glitchy/phased shape
+  const TELEPORTER_GRID = [
+    [0,0,1,1,1,1,0,0],
+    [0,1,1,3,3,1,1,0],
+    [1,1,3,0,0,3,1,1],
+    [1,0,0,1,1,0,0,1],
+    [1,0,0,1,1,0,0,1],
+    [1,1,0,0,0,0,1,1],
+    [0,1,2,0,0,2,1,0],
+    [0,0,1,0,0,1,0,0]
+  ];
+
   const GRIDS = {
     small:  SMALL_GRID,
     medium: MEDIUM_GRID,
     baby:   BABY_GRID,
     crab:   CRAB_GRID,
-    boss:   BOSS_GRID
+    boss:   BOSS_GRID,
+    shield: SHIELD_GRID,
+    mine:   MINE_GRID,
+    teleporter: TELEPORTER_GRID
   };
 
   // --- Crabby Squid: separate array for horizontal movers ---
   let crabEnemies = [];
+  // --- Dropped mines ---
+  let mines = [];
 
   function createEnemy(type, x, y, level) {
     const stats = CONFIG.enemyStats[type];
@@ -127,7 +168,17 @@ const Enemies = (() => {
       bossLaserTurretTimers: type === 'boss' ? [0, 400, 800] : null,
       // Entry animation
       entering: true,
-      targetY: type === 'boss' ? 120 : 60 + Math.random() * 100
+      targetY: type === 'boss' ? 120 : 60 + Math.random() * 100,
+      // Shield-specific
+      shieldActive: type === 'shield',
+      shieldHealth: type === 'shield' ? 1 : 0,
+      // Mine-specific
+      mineTimer: type === 'mine' ? (2000 + Math.random() * 2000) : 0,
+      // Teleporter-specific
+      teleportTimer: type === 'teleporter' ? (3000 + Math.random() * 2000) : 0,
+      teleporting: false,
+      teleportAlpha: 1,
+      teleportPhase: 0
     };
   }
 
@@ -183,7 +234,13 @@ const Enemies = (() => {
     const startY = -100 - formationH / 2;
 
     // Types per row cycle: medium, small, baby, medium, small, baby, medium, small
-    const typeCycle = ['medium', 'small', 'baby', 'medium', 'small', 'baby', 'medium', 'small'];
+    // Extended with new enemy types at higher levels
+    const typeCycle = [
+      'medium', 'small', 'baby', 'medium', 'small', 'baby', 'medium', 'small',
+      ...(level >= 3 ? ['shield'] : []),
+      ...(level >= 5 ? ['mine'] : []),
+      ...(level >= 7 ? ['teleporter'] : [])
+    ];
 
     for (let row = 0; row < rows; row++) {
       const rowType = typeCycle[row % typeCycle.length];
@@ -211,9 +268,15 @@ const Enemies = (() => {
     for (let i = 0; i < count; i++) {
       const r = Math.random();
       let type;
-      if (level >= 5 && r < 0.05) {
+      if (level >= 7 && r < 0.03) {
+        type = 'teleporter';
+      } else if (level >= 5 && r < 0.08) {
+        type = 'mine';
+      } else if (level >= 5 && r < 0.11) {
         type = 'boss';
       } else if (level >= 3 && r < 0.25) {
+        type = 'shield';
+      } else if (level >= 3 && r < 0.35) {
         type = 'medium';
       } else if (r < 0.6) {
         type = 'small';
@@ -526,6 +589,10 @@ const Enemies = (() => {
       l.x += l.vx * dtScale;
       l.y += l.vy * dtScale;
       l.life -= (dt / 1000) * 0.15;
+
+      // Spawn particle trail behind each laser
+      Particles.spawnEnemyLaserTrail(l.x, l.y);
+
       if (l.life <= 0 || l.y > window.innerHeight + 20 || l.y < -20 ||
           l.x < -20 || l.x > window.innerWidth + 20) {
         enemyLasers.splice(i, 1);
