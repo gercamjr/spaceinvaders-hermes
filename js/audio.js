@@ -214,6 +214,22 @@ const AudioSys = (() => {
     }
   }
 
+  // --- Enemy laser hit sound (short pitch-down sweep) ---
+  function playEnemyLaser() {
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.06);
+  }
+
   // --- Boss warning alarm ---
   function playBossAlarm() {
     if (!ctx) return;
@@ -339,6 +355,7 @@ const AudioSys = (() => {
     playLaser,
     playExplosion,
     playHit,
+    playEnemyLaser,
     playPowerup,
     startUnleashDrone,
     stopUnleashDrone,

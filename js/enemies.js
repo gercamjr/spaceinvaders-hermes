@@ -7,7 +7,9 @@
 const Enemies = (() => {
   let list = [];
   let inkBlobs = [];
+  let enemyLasers = [];
   let frameCount = 0;
+  let currentLevel = 1;
 
   // --- Pixel art grids for each octopus type ---
   // 0 = empty, 1 = body, 2 = tentacle (animated), 3 = eye
@@ -103,6 +105,10 @@ const Enemies = (() => {
       tentacleAngle: 0,
       // Ink shooting (medium)
       shootTimer: 2000 + Math.random() * 2000,
+      // Enemy laser shooting
+      laserTimer: type === 'small' ? (3000 + Math.random() * 2000) : type === 'medium' ? (2000 + Math.random() * 1000) : 0,
+      // Boss laser turrets
+      bossLaserTurretTimers: type === 'boss' ? [0, 400, 800] : null,
       // Entry animation
       entering: true,
       targetY: type === 'boss' ? 120 : 60 + Math.random() * 100
@@ -122,6 +128,18 @@ const Enemies = (() => {
       color: CONFIG.colors.purple,
       life: 1,
       damage: 5
+    });
+  }
+
+  function createEnemyLaser(x, y, vx, vy) {
+    enemyLasers.push({
+      x, y,
+      vx: vx || 0,
+      vy: vy || 4,
+      radius: 4,
+      color: CONFIG.colors.red,
+      life: 1,
+      damage: 10
     });
   }
 
@@ -264,6 +282,59 @@ const Enemies = (() => {
         }
       }
 
+      // Enemy laser firing with level-scaled difficulty
+      const levelMult = 1 + (currentLevel - 1) * 0.1;
+
+      // Small octopus: straight-down laser
+      if (e.type === 'small' && !e.entering) {
+        e.laserTimer -= dt * levelMult;
+        if (e.laserTimer <= 0) {
+          createEnemyLaser(e.x, e.y + e.size / 2, 0, 4);
+          e.laserTimer = (3000 + Math.random() * 2000) / levelMult;
+        }
+      }
+
+      // Medium octopus: aimed shot at player position
+      if (e.type === 'medium' && !e.entering) {
+        e.laserTimer -= dt * levelMult;
+        if (e.laserTimer <= 0) {
+          const pPos = Player.getPos();
+          const tx = pPos ? pPos.x : e.x;
+          const ty = pPos ? pPos.y : window.innerHeight - 100;
+          const dx = tx - e.x;
+          const dy = ty - e.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const speed = 4.5;
+          if (dist > 0) {
+            createEnemyLaser(e.x, e.y + e.size / 2, (dx / dist) * speed, (dy / dist) * speed);
+          }
+          e.laserTimer = (2000 + Math.random() * 1000) / levelMult;
+        }
+      }
+
+      // Boss: rapid-fire multi-laser turrets
+      if (e.type === 'boss' && e.bossLaserTurretTimers && !e.entering) {
+        for (let t = 0; t < e.bossLaserTurretTimers.length; t++) {
+          e.bossLaserTurretTimers[t] -= dt * levelMult;
+          if (e.bossLaserTurretTimers[t] <= 0) {
+            // Offset laser x positions across boss width
+            const offsets = [-0.3, 0, 0.3];
+            const lx = e.x + offsets[t] * e.size;
+            const pPos2 = Player.getPos();
+            const tx2 = pPos2 ? pPos2.x : e.x;
+            const ty2 = pPos2 ? pPos2.y : window.innerHeight - 100;
+            const dx2 = tx2 - lx;
+            const dy2 = ty2 - e.y;
+            const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+            const bSpeed = 5;
+            if (dist2 > 0) {
+              createEnemyLaser(lx, e.y + e.size / 2, (dx2 / dist2) * bSpeed, (dy2 / dist2) * bSpeed);
+            }
+            e.bossLaserTurretTimers[t] = (800 + Math.random() * 400) / levelMult;
+          }
+        }
+      }
+
       // Remove if off screen bottom
       if (e.y > window.innerHeight + e.size) {
         e.alive = false;
@@ -279,6 +350,18 @@ const Enemies = (() => {
       b.life -= (dt / 1000) * 0.4;
       if (b.life <= 0 || b.y > window.innerHeight + 20) {
         inkBlobs.splice(i, 1);
+      }
+    }
+
+    // Update enemy lasers
+    for (let i = enemyLasers.length - 1; i >= 0; i--) {
+      const l = enemyLasers[i];
+      l.x += l.vx * dtScale;
+      l.y += l.vy * dtScale;
+      l.life -= (dt / 1000) * 0.15;
+      if (l.life <= 0 || l.y > window.innerHeight + 20 || l.y < -20 ||
+          l.x < -20 || l.x > window.innerWidth + 20) {
+        enemyLasers.splice(i, 1);
       }
     }
   }
@@ -383,6 +466,27 @@ const Enemies = (() => {
       ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Draw enemy lasers (red glow with trail)
+    for (const l of enemyLasers) {
+      ctx.save();
+      ctx.globalAlpha = l.life;
+      // Glow
+      ctx.shadowColor = l.color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = l.color;
+      ctx.fillRect(l.x - l.radius, l.y - l.radius, l.radius * 2, l.radius * 2);
+      // Trail
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = l.life * 0.3;
+      ctx.fillRect(l.x - l.radius * 0.6, l.y - l.radius * 0.6, l.radius * 1.2, l.radius * 3);
+      // Bright core
+      ctx.globalAlpha = l.life * 0.9;
+      ctx.fillStyle = CONFIG.colors.orange;
+      ctx.fillRect(l.x - 1, l.y - 1, 2, 2);
+      ctx.restore();
+    }
+
     ctx.globalAlpha = 1;
   }
 
@@ -420,7 +524,9 @@ const Enemies = (() => {
 
   function getAlive() { return list.filter(e => e.alive); }
   function getInkBlobs() { return inkBlobs; }
-  function clear() { list = []; inkBlobs = []; }
+  function getEnemyLasers() { return enemyLasers; }
+  function setLevel(lvl) { currentLevel = lvl; }
+  function clear() { list = []; inkBlobs = []; enemyLasers = []; }
   function isEmpty() { return list.filter(e => e.alive).length === 0; }
 
   // For start screen preview
@@ -460,6 +566,8 @@ const Enemies = (() => {
     killEnemy,
     getAlive,
     getInkBlobs,
+    getEnemyLasers,
+    setLevel,
     clear,
     isEmpty,
     drawPreview

@@ -198,6 +198,7 @@ const Game = (() => {
   function startGame() {
     state = 'PLAYING';
     AudioSys.startBGM();
+    Enemies.setLevel(level);
     spawnWave();
   }
 
@@ -222,6 +223,7 @@ const Game = (() => {
 
   function advanceLevel(now) {
     level++;
+    Enemies.setLevel(level);
     if (level % CONFIG.boss.interval === 0) {
       bossSpawned = true;
       Enemies.spawnBoss(level);
@@ -453,6 +455,33 @@ const Game = (() => {
           Enemies.getInkBlobs().splice(i, 1);
           combo = 1;
           comboTimer = 0;
+        }
+      }
+
+      // Player vs enemy lasers
+      const eLasers = Enemies.getEnemyLasers();
+      let laserHitPlayed = false;
+      for (let i = eLasers.length - 1; i >= 0; i--) {
+        const laser = eLasers[i];
+        if (circleCollision(pPos.x, pPos.y, Player.getRadius(), laser.x, laser.y, laser.radius)) {
+          Player.takeDamage(laser.damage);
+          flashAlpha = 0.2;
+          triggerShake(5, 150);
+          Particles.spawnLaserHitSparks(laser.x, laser.y, 6);
+          Particles.spawnDamageNumber(pPos.x, pPos.y - 20, laser.damage);
+          if (!laserHitPlayed) {
+            AudioSys.playEnemyLaser();
+            laserHitPlayed = true;
+          }
+          combo = 1;
+          comboTimer = 0;
+          eLasers.splice(i, 1);
+          if (!Player.isAlive()) {
+            state = 'GAMEOVER';
+            AudioSys.stopBGM();
+            Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
+            AudioSys.playExplosion('boss');
+          }
         }
       }
     }

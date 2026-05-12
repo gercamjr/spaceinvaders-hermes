@@ -158,6 +158,21 @@ const Particles = (() => {
     }
   }
 
+  function spawnLaserHitSparks(x, y, count = 6) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 4;
+      create(x, y, {
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.15 + Math.random() * 0.25,
+        size: 1 + Math.random() * 2,
+        color: Math.random() > 0.5 ? CONFIG.colors.red : CONFIG.colors.orange,
+        friction: 0.92
+      });
+    }
+  }
+
   function spawnDamageNumber(x, y, amount) {
     create(x, y, {
       vx: 0,
@@ -199,6 +214,7 @@ const Particles = (() => {
     spawnEngineTrail,
     spawnBulletTrail,
     spawnSparks,
+    spawnLaserHitSparks,
     spawnDamageNumber,
     spawnPowerupSparkle,
     clear
