@@ -436,6 +436,8 @@ const Game = (() => {
     Enemies.resetAll();
     Particles.clear();
     Player.reset();
+    gameOverSaved = false;
+    showNextAchievement();
   }
 
   // Shop state: upgrade selection
@@ -456,6 +458,7 @@ const Game = (() => {
 
   let shopOpen = false;
   let shopBounds = null;
+  let gameOverSaved = false;
 
   function checkAchievements() {
     for (const [id, def] of Object.entries(ACHIEVEMENTS)) {
@@ -1166,6 +1169,13 @@ const Game = (() => {
     // Game over
     if (state === 'GAMEOVER') {
       UI.drawGameOverScreen(ctx, score, level, enemiesKilled);
+
+      // Save once per game over
+      if (!gameOverSaved) {
+        gameOverSaved = true;
+        SaveManager.addScore(score, level, enemiesKilled, 'arcade');
+        checkAchievements();
+      }
     }
 
     // Pause
@@ -1176,12 +1186,6 @@ const Game = (() => {
     // Achievement toast
     if (activeAchievement && achievementTimer > 0) {
       UI.drawAchievementToast(ctx, activeAchievement, achievementTimer);
-    }
-
-    // Save on game over (once)
-    if (state === 'GAMEOVER' && !SaveManager.getAchievement('gameOverSave')) {
-      SaveManager.addScore(score, level, enemiesKilled, 'arcade');
-      SaveManager.unlockAchievement('gameOverSave');
     }
 
     ctx.restore();
