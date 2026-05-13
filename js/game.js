@@ -8,7 +8,7 @@
 const Game = (() => {
   let canvas = null;
   let ctx = null;
-  let state = 'MENU'; // MENU | SETTINGS | PLAYING | PAUSED | GAMEOVER
+  let state = 'MENU'; // MENU | SETTINGS | SHOP | PLAYING | PAUSED | GAMEOVER
   let previousState = 'MENU'; // track where to return from settings
   let lastTime = 0;
   let animFrame = null;
@@ -21,6 +21,7 @@ const Game = (() => {
   // Game state
   let score = 0;
   let level = 1;
+  let currentLevelScore = 0; // track score within current level
   let combo = 1;
   let comboTimer = 0;
   let enemiesKilled = 0;
@@ -173,6 +174,12 @@ const Game = (() => {
       return;
     }
 
+    // SHOP state: handle upgrade/continue clicks
+    if (state === 'SHOP') {
+      handleShopClick(cx, cy);
+      return;
+    }
+
     // SETTINGS state: handle slider/mute/back clicks
     if (state === 'SETTINGS') {
       handleSettingsClick(cx, cy);
@@ -309,6 +316,44 @@ const Game = (() => {
     }
   }
 
+  // --- Shop click handling ---
+  function handleShopClick(cx, cy) {
+    if (!shopBounds) return;
+
+    // Check card clicks
+    for (const card of shopBounds.cards) {
+      if (cx >= card.x && cx <= card.x + card.w && cy >= card.y && cy <= card.y + card.h) {
+        const item = SHOP_ITEMS.find(i => i.id === card.id);
+        if (!item) return;
+
+        const purchased = SaveManager.get('purchasedUpgrades');
+        if (purchased[item.id]) return; // already owned
+
+        if (score >= item.cost) {
+          score -= item.cost;
+          purchased[item.id] = true;
+          SaveManager.set('purchasedUpgrades', purchased);
+          Player.applyUpgrades();
+        }
+        return;
+      }
+    }
+
+    // Continue button click
+    const c = shopBounds.continue;
+    if (cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h) {
+      shopOpen = false;
+      state = 'PLAYING';
+      spawnWave();
+    }
+  }
+
+  function openShop() {
+    shopOpen = true;
+    state = 'SHOP';
+    checkAchievements();
+  }
+
   function onMouseUp() {
     mouseDown = false;
   }
@@ -394,7 +439,41 @@ const Game = (() => {
   }
 
   // Shop state: upgrade selection
+  // Achievement definitions
+  const ACHIEVEMENTS = {
+    firstKill: { name: 'First Blood', condition: () => enemiesKilled >= 1 },
+    hundredKills: { name: 'Centurion', condition: () => enemiesKilled >= 100 },
+    fiveHundredKills: { name: 'Annihilator', condition: () => enemiesKilled >= 500 },
+    levelTen: { name: 'Survivor', condition: () => level >= 10 },
+    levelTwenty: { name: 'Veteran', condition: () => level >= 20 },
+    bossSlayer: { name: 'Boss Slayer', condition: () => SaveManager.get('totalBossKills') >= 1 },
+    score5000: { name: 'High Roller', condition: () => SaveManager.get('bestArcadeScore') >= 5000 }
+  };
+
+  let achievementQueue = [];
+  let activeAchievement = null;
+  let achievementTimer = 0;
+
   let shopOpen = false;
+  let shopBounds = null;
+
+  function checkAchievements() {
+    for (const [id, def] of Object.entries(ACHIEVEMENTS)) {
+      if (!SaveManager.getAchievement(id) && def.condition()) {
+        const isNew = SaveManager.unlockAchievement(id);
+        if (isNew) {
+          achievementQueue.push(def.name);
+        }
+      }
+    }
+  }
+
+  function showNextAchievement() {
+    if (achievementQueue.length > 0 && !activeAchievement) {
+      activeAchievement = achievementQueue.shift();
+      achievementTimer = 3000;
+    }
+  }
   let shopSelection = 0; // Currently selected upgrade card
   let pendingLevelScore = 0; // Score to display in shop
 
@@ -442,16 +521,22 @@ const Game = (() => {
     // Level up animation
     levelUpTimer = 2000;
 
+    // Ship upgrade check (every CONFIG.player.upgradeInterval levels)
+    if ((level - 1) % CONFIG.player.upgradeInterval === 0) {
+      pendingUpgrade = true;
+    }
+
     // Check if this is a boss level — start boss warning countdown
     if (level % CONFIG.boss.interval === 0) {
       bossWarningActive = true;
       bossWarningTimer = 3000;
+      checkAchievements();
     } else {
-      // Ship upgrade check (every CONFIG.player.upgradeInterval levels)
-      if ((level - 1) % CONFIG.player.upgradeInterval === 0) {
-        pendingUpgrade = true;
-      }
-      spawnWave();
+      // Clear enemies and open shop between levels
+      waveEnemiesSpawned = 0;
+      waveEnemiesTotal = 0;
+      bossSpawned = false;
+      openShop();
     }
   }
 
@@ -916,6 +1001,16 @@ const Game = (() => {
 
     // Update shake
     updateShake(dt);
+
+    // Update achievement toast
+    if (achievementTimer > 0) {
+      achievementTimer -= dt;
+      if (achievementTimer <= 0) {
+        activeAchievement = null;
+        achievementTimer = 0;
+      }
+    }
+    showNextAchievement();
   }
 
   function draw(now) {
@@ -929,6 +1024,12 @@ const Game = (() => {
 
     if (state === 'MENU') {
       UI.drawStartScreen(ctx);
+      ctx.restore();
+      return;
+    }
+
+    if (state === 'SHOP') {
+      shopBounds = UI.drawShopScreen(ctx, score, SaveManager.get('purchasedUpgrades'));
       ctx.restore();
       return;
     }
@@ -1070,6 +1171,17 @@ const Game = (() => {
     // Pause
     if (state === 'PAUSED') {
       UI.drawPauseScreen(ctx);
+    }
+
+    // Achievement toast
+    if (activeAchievement && achievementTimer > 0) {
+      UI.drawAchievementToast(ctx, activeAchievement, achievementTimer);
+    }
+
+    // Save on game over (once)
+    if (state === 'GAMEOVER' && !SaveManager.getAchievement('gameOverSave')) {
+      SaveManager.addScore(score, level, enemiesKilled, 'arcade');
+      SaveManager.unlockAchievement('gameOverSave');
     }
 
     ctx.restore();

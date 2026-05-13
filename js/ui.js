@@ -545,6 +545,185 @@ const UI = (() => {
     ctx.restore();
   }
 
+  // Upgrade shop between levels
+  function drawShopScreen(ctx, score, upgrades) {
+    const cx = ctx.canvas.width / 2;
+    const cy = ctx.canvas.height / 2;
+
+    const titleSize = scaledFontSize(36);
+    const cardW = Math.min(scaledFontSize(200), ctx.canvas.width * 0.22);
+    const cardH = scaledFontSize(130);
+    const cardGap = scaledFontSize(16);
+    const fontSize = scaledFontSize(16);
+    const btnH = scaledFontSize(36);
+
+    // Dark overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    // Title
+    ctx.save();
+    ctx.shadowColor = CONFIG.colors.gold;
+    ctx.shadowBlur = 15;
+    ctx.font = `bold ${titleSize}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = CONFIG.colors.gold;
+    ctx.fillText('UPGRADE SHOP', cx, cy - titleSize * 2.2);
+    ctx.shadowBlur = 0;
+
+    // Points available
+    ctx.font = `${scaledFontSize(20)}px monospace`;
+    ctx.fillStyle = CONFIG.colors.white;
+    ctx.fillText(`Score: ${score}`, cx, cy - titleSize * 1.4);
+
+    // Divider
+    const divW = cardW * 4 + cardGap * 3;
+    ctx.strokeStyle = CONFIG.colors.gold;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - divW / 2, cy - titleSize * 1);
+    ctx.lineTo(cx + divW / 2, cy - titleSize * 1);
+    ctx.stroke();
+
+    // Upgrade cards
+    const startY = cy - titleSize * 0.5;
+    const totalCardsW = ups.length * (cardW + cardGap) - cardGap;
+    const startX = cx - totalCardsW / 2;
+
+    for (let i = 0; i < ups.length; i++) {
+      const u = ups[i];
+      const owned = upgrades[u.id];
+      const canAfford = score >= u.cost;
+      const x = startX + i * (cardW + cardGap);
+      const y = startY;
+
+      // Card background
+      ctx.fillStyle = owned ? 'rgba(50, 200, 50, 0.2)' : 'rgba(50, 50, 50, 0.6)';
+      roundRect(ctx, x, y, cardW, cardH, scaledFontSize(8));
+
+      // Border
+      ctx.strokeStyle = owned ? CONFIG.colors.green : (canAfford ? CONFIG.colors.cyan : '#444');
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + scaledFontSize(8), y);
+      ctx.lineTo(x + cardW - scaledFontSize(8), y);
+      ctx.arcTo(x + cardW, y, x + cardW, y + scaledFontSize(8), scaledFontSize(8));
+      ctx.lineTo(x + cardW, y + cardH - scaledFontSize(8));
+      ctx.arcTo(x + cardW, y + cardH, x + cardW - scaledFontSize(8), y + cardH, scaledFontSize(8));
+      ctx.lineTo(x + scaledFontSize(8), y + cardH);
+      ctx.arcTo(x, y + cardH, x, y + cardH - scaledFontSize(8), scaledFontSize(8));
+      ctx.lineTo(x, y + scaledFontSize(8));
+      ctx.arcTo(x, y, x + scaledFontSize(8), y, scaledFontSize(8));
+      ctx.closePath();
+      ctx.stroke();
+
+      // Icon
+      ctx.font = `bold ${scaledFontSize(28)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = owned ? CONFIG.colors.green : CONFIG.colors.white;
+      ctx.fillText(u.icon, x + cardW / 2, y + scaledFontSize(32));
+
+      // Name
+      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.fillStyle = CONFIG.colors.white;
+      ctx.fillText(u.name, x + cardW / 2, y + scaledFontSize(55));
+
+      // Description
+      ctx.font = `${scaledFontSize(11)}px monospace`;
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(u.desc, x + cardW / 2, y + scaledFontSize(72));
+
+      // Owned text or cost
+      if (owned) {
+        ctx.font = `bold ${scaledFontSize(14)}px monospace`;
+        ctx.fillStyle = CONFIG.colors.green;
+        ctx.fillText('[OWNED]', x + cardW / 2, y + cardH - scaledFontSize(18));
+      } else {
+        ctx.font = `bold ${fontSize}px monospace`;
+        ctx.fillStyle = canAfford ? CONFIG.colors.gold : '#666';
+        ctx.fillText(`${u.cost} pts`, x + cardW / 2, y + cardH - scaledFontSize(18));
+      }
+    }
+
+    // Continue button
+    const contBtnW = scaledFontSize(200);
+    const contBtnH = scaledFontSize(40);
+    const contY = startY + cardH + scaledFontSize(30);
+    const contX = cx - contBtnW / 2;
+
+    ctx.fillStyle = CONFIG.colors.cyan;
+    roundRect(ctx, contX, contY, contBtnW, contBtnH, scaledFontSize(8));
+    ctx.font = `bold ${scaledFontSize(18)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = CONFIG.colors.bg;
+    ctx.fillText('CONTINUE', cx, contY + contBtnH / 2);
+
+    ctx.restore();
+
+    // Return bounding boxes for click detection
+    return {
+      cards: ups.map((u, i) => ({
+        x: startX + i * (cardW + cardGap),
+        y: startY,
+        w: cardW,
+        h: cardH,
+        id: u.id
+      })),
+      continue: {
+        x: contX,
+        y: contY,
+        w: contBtnW,
+        h: contBtnH
+      }
+    };
+  }
+
+  // Achievement toast notification
+  function drawAchievementToast(ctx, name, timer) {
+    const toastH = scaledFontSize(40);
+    const toastW = Math.min(scaledFontSize(350), ctx.canvas.width * 0.4);
+    const toastX = ctx.canvas.width / 2 - toastW / 2;
+    const toastY = scaledFontSize(10);
+
+    // Fade in/out
+    let alpha = 1;
+    if (timer > 2500) alpha = (3000 - timer) / 500; // fade out
+    if (timer < 200) alpha = timer / 200; // fade in
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    roundRect(ctx, toastX, toastY, toastW, toastH, scaledFontSize(8));
+    ctx.strokeStyle = CONFIG.colors.gold;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(toastX + scaledFontSize(8), toastY);
+    ctx.lineTo(toastX + toastW - scaledFontSize(8), toastY);
+    ctx.arcTo(toastX + toastW, toastY, toastX + toastW, toastY + scaledFontSize(8), scaledFontSize(8));
+    ctx.lineTo(toastX + toastW, toastY + toastH - scaledFontSize(8));
+    ctx.arcTo(toastX + toastW, toastY + toastH, toastX + toastW - scaledFontSize(8), toastY + toastH, scaledFontSize(8));
+    ctx.lineTo(toastX + scaledFontSize(8), toastY + toastH);
+    ctx.arcTo(toastX, toastY + toastH, toastX, toastY + toastH - scaledFontSize(8), scaledFontSize(8));
+    ctx.lineTo(toastX, toastY + scaledFontSize(8));
+    ctx.arcTo(toastX, toastY, toastX + scaledFontSize(8), toastY, scaledFontSize(8));
+    ctx.closePath();
+    ctx.stroke();
+
+    // Text
+    ctx.font = `bold ${scaledFontSize(14)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = CONFIG.colors.gold;
+    ctx.fillText('🏆 ACHIEVEMENT UNLOCKED!', ctx.canvas.width / 2, toastY + toastH / 2);
+
+    ctx.restore();
+  }
+
   return {
     drawHUD,
     drawStartScreen,
@@ -553,6 +732,8 @@ const UI = (() => {
     drawLevelUpText,
     drawBossWarning,
     drawBossDefeated,
-    drawSettingsScreen
+    drawSettingsScreen,
+    drawShopScreen,
+    drawAchievementToast
   };
 })();
