@@ -508,6 +508,14 @@ const Game = (() => {
       achievementTimer = 3000;
     }
   }
+
+  function openShop() {
+    shopOpen = true;
+    state = 'SHOP';
+    shopBounds = null;
+    checkAchievements();
+  }
+
   let shopSelection = 0; // Currently selected upgrade card
   let pendingLevelScore = 0; // Score to display in shop
 
