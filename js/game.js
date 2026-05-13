@@ -523,21 +523,17 @@ const Game = (() => {
     waveEnemiesSpawned = 0;
     waveSpawnTimer = 0;
 
-    // Boss level warning
+    // Boss level: mini-swarm + boss
     if (level % CONFIG.boss.interval === 0) {
       miniSwarmSpawned = true;
       Enemies.spawnMiniSwarm();
-    }
-
-    // Spawn boss directly on boss levels
-    if (level % CONFIG.boss.interval === 0) {
       bossSpawned = true;
       Enemies.spawnBoss(level);
     } else {
       // Non-boss levels: spawn row-based formation instantly
       Enemies.spawnWave(level);
       waveEnemiesTotal = Enemies.getAlive().length;
-      waveEnemiesSpawned = waveEnemiesTotal; // all already spawned
+      waveEnemiesSpawned = waveEnemiesTotal;
     }
   }
 
