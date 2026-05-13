@@ -64,7 +64,8 @@ const Game = (() => {
   // Pending ship upgrade (flash + particles)
   let pendingUpgrade = false;
 
-  // --- Settings persistence ---
+    // --- Settings persistence ---
+    let gameMode = 'arcade'; // 'arcade' or 'endless'
   function loadSettings() {
     AudioSys.loadSettings();
     const s = AudioSys.getSettings();
@@ -325,12 +326,10 @@ const Game = (() => {
       if (cx >= card.x && cx <= card.x + card.w && cy >= card.y && cy <= card.y + card.h) {
         const item = SHOP_ITEMS.find(i => i.id === card.id);
         if (!item) return;
-
-        const purchased = SaveManager.get('purchasedUpgrades');
-        if (purchased[item.id]) return; // already owned
-
+        if (SaveManager.get('purchasedUpgrades')[item.id]) return;
         if (score >= item.cost) {
           score -= item.cost;
+          const purchased = SaveManager.get('purchasedUpgrades');
           purchased[item.id] = true;
           SaveManager.set('purchasedUpgrades', purchased);
           Player.applyUpgrades();
@@ -348,10 +347,70 @@ const Game = (() => {
     }
   }
 
-  function openShop() {
-    shopOpen = true;
-    state = 'SHOP';
-    checkAchievements();
+  function startGame() {
+    state = 'PLAYING';
+    AudioSys.startBGM();
+    Enemies.setLevel(level);
+    Player.applyUpgrades();
+    if (gameMode === 'endless') {
+      waveEnemiesSpawned = 0;
+      waveEnemiesTotal = 0;
+      bossSpawned = false;
+    }
+    spawnWave();
+  }
+
+  function resetGame() {
+    score = 0;
+    level = 1;
+    combo = 1;
+    comboTimer = 0;
+    enemiesKilled = 0;
+    bullets = [];
+    powerups = [];
+    waveSpawnTimer = 0;
+    waveEnemiesSpawned = 0;
+    bossSpawned = false;
+    miniSwarmSpawned = false;
+    shakeIntensity = 0;
+    shakeDuration = 0;
+    flashAlpha = 0;
+    levelUpTimer = 0;
+    bossWarningActive = false;
+    bossWarningTimer = 0;
+    bossDefeatedTimer = 0;
+    pendingUpgrade = false;
+    mobileAutoFiring = false;
+    gameOverSaved = false;
+    shopOpen = false;
+    shopBounds = null;
+    activeAchievement = null;
+    achievementTimer = 0;
+    achievementQueue = [];
+    Enemies.resetAll();
+    Particles.clear();
+    Player.reset();
+    showNextAchievement();
+  }
+
+  // --- Game over handler ---
+  function handleGameOver(now) {
+    state = 'GAMEOVER';
+    AudioSys.stopBGM();
+    Particles.spawnExplosion(canvas.width / 2, canvas.height / 2, 'boss');
+    AudioSys.playExplosion('boss');
+
+    // Only save once per game over
+    if (!gameOverSaved) {
+      gameOverSaved = true;
+      SaveManager.addScore(score, level, enemiesKilled, gameMode);
+      checkAchievements();
+    }
+
+    // In endless mode, show shop before game over screen
+    if (gameMode === 'endless') {
+      openShop();
+    }
   }
 
   function onMouseUp() {
@@ -412,34 +471,6 @@ const Game = (() => {
     }
   }
 
-  function resetGame() {
-    score = 0;
-    level = 1;
-    combo = 1;
-    comboTimer = 0;
-    enemiesKilled = 0;
-    bullets = [];
-    powerups = [];
-    waveSpawnTimer = 0;
-    waveEnemiesSpawned = 0;
-    bossSpawned = false;
-    miniSwarmSpawned = false;
-    shakeIntensity = 0;
-    shakeDuration = 0;
-    flashAlpha = 0;
-    levelUpTimer = 0;
-    bossWarningActive = false;
-    bossWarningTimer = 0;
-    bossDefeatedTimer = 0;
-    pendingUpgrade = false;
-    mobileAutoFiring = false;
-    Enemies.resetAll();
-    Particles.clear();
-    Player.reset();
-    gameOverSaved = false;
-    showNextAchievement();
-  }
-
   // Shop state: upgrade selection
   // Achievement definitions
   const ACHIEVEMENTS = {
@@ -487,14 +518,6 @@ const Game = (() => {
     { id: 'speedBoost', name: 'Ship Speed', desc: '30% faster ship movement', cost: 400, icon: '→' },
     { id: 'healthBoost', name: 'Health Boost', desc: '+25 max HP', cost: 600, icon: '♥' }
   ];
-
-  function startGame() {
-    state = 'PLAYING';
-    AudioSys.startBGM();
-    Enemies.setLevel(level);
-    Player.applyUpgrades();
-    spawnWave();
-  }
 
   function spawnWave() {
     waveEnemiesSpawned = 0;
