@@ -443,6 +443,7 @@ const Player = (() => {
     getTier,
     getRadius,
     getInvulnTimer,
-    reset
+    reset,
+    applyUpgrades
   };
 })();
