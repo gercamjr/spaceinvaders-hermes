@@ -1031,6 +1031,19 @@ const Game = (() => {
       return;
     }
 
+    // Game over
+    if (state === 'GAMEOVER') {
+      UI.drawGameOverScreen(ctx, score, level, enemiesKilled);
+
+      // Save once per game over
+      if (!gameOverSaved) {
+        gameOverSaved = true;
+        SaveManager.addScore(score, level, enemiesKilled, 'arcade');
+        checkAchievements();
+      }
+    }
+
+    // Shop
     if (state === 'SHOP') {
       shopBounds = UI.drawShopScreen(ctx, score, SaveManager.get('purchasedUpgrades'));
       ctx.restore();
@@ -1167,18 +1180,6 @@ const Game = (() => {
     }
 
     // Game over
-    if (state === 'GAMEOVER') {
-      UI.drawGameOverScreen(ctx, score, level, enemiesKilled);
-
-      // Save once per game over
-      if (!gameOverSaved) {
-        gameOverSaved = true;
-        SaveManager.addScore(score, level, enemiesKilled, 'arcade');
-        checkAchievements();
-      }
-    }
-
-    // Pause
     if (state === 'PAUSED') {
       UI.drawPauseScreen(ctx);
     }

@@ -103,7 +103,8 @@ const Player = (() => {
       unleashActive: false,
       unleashEnd: 0,
       alive: true,
-      invulnTimer: 0
+      invulnTimer: 0,
+      lerpFactor: CONFIG.player.lerpFactor
     };
     applyUpgrades();
   }
@@ -160,10 +161,11 @@ const Player = (() => {
       ship.invulnTimer -= dt;
     }
 
-    // Lerp mouse tracking
+    // Lerp mouse tracking — use ship.lerpFactor (modified by upgrades)
     const prevX = ship.x;
-    ship.x += (ship.mouseX - ship.x) * CONFIG.player.lerpFactor;
-    ship.y += (ship.mouseY - ship.y) * CONFIG.player.lerpFactor;
+    const lerp = ship.lerpFactor || CONFIG.player.lerpFactor;
+    ship.x += (ship.mouseX - ship.x) * lerp;
+    ship.y += (ship.mouseY - ship.y) * lerp;
 
     // Tilt based on horizontal movement
     const dx = ship.x - prevX;
@@ -193,7 +195,9 @@ const Player = (() => {
 
   function canShoot(now) {
     if (!ship || !ship.alive) return false;
-    const rate = ship.unleashActive ? CONFIG.player.fireRate * 0.4 : CONFIG.player.fireRate;
+    let rate = CONFIG.player.fireRate;
+    if (ship.unleashActive) rate *= 0.4;
+    if (upgrades.rapidFire) rate *= 0.5;
     return now - ship.lastShot >= rate;
   }
 
@@ -222,6 +226,30 @@ const Player = (() => {
           tier: 'unleash'
         });
       }
+    } else if (upgrades.doubleShot) {
+      // Double shot: two parallel bullets
+      bullets.push({
+        x: ship.x - 8,
+        y: ship.y - TIER_SIZES[tier - 1] / 2,
+        vx: 0,
+        vy: -speed,
+        width: 3,
+        height: 10,
+        color: TIER_COLORS[tier - 1],
+        damage: 10,
+        tier: tier
+      });
+      bullets.push({
+        x: ship.x + 8,
+        y: ship.y - TIER_SIZES[tier - 1] / 2,
+        vx: 0,
+        vy: -speed,
+        width: 3,
+        height: 10,
+        color: TIER_COLORS[tier - 1],
+        damage: 10,
+        tier: tier
+      });
     } else if (tier === 1) {
       bullets.push({
         x: ship.x,
@@ -326,7 +354,7 @@ const Player = (() => {
     const ox = ship.x - size / 2;
     const oy = ship.y - size / 2;
 
-    const glowColor = TIER_COLORS[tier - 1];
+    const glowColor = isRainbowSkin() ? null : getSkinColor();
 
     // Tilt transform
     ctx.save();
