@@ -559,35 +559,35 @@ const Game = (() => {
 
   function advanceLevel(now) {
     level++;
-
     // Level up animation
     levelUpTimer = 2000;
     pendingUpgrade = false;
-
     // Clear crabs between levels (they don't persist)
     Enemies.clearCrabs();
-
     // Ship upgrade check (every CONFIG.player.upgradeInterval levels)
     if ((level - 1) % CONFIG.player.upgradeInterval === 0) {
-        pendingUpgrade = true;
+      pendingUpgrade = true;
     }
-
     // Check if this is a boss level — start boss warning countdown
     if (level % CONFIG.boss.interval === 0) {
-        bossWarningActive = true;
-        bossWarningTimer = 3000;
-        checkAchievements();
+      bossWarningActive = true;
+      bossWarningTimer = 3000;
+      checkAchievements();
     } else {
-        // Clear enemies and add delay before shop opens
-        waveEnemiesSpawned = 0;
-        waveEnemiesTotal = 0;
+      // Clear enemies and add delay before shop opens
+      waveEnemiesSpawned = 0;
+      waveEnemiesTotal = 1; // Prevent isEmpty() from triggering again
+      bossSpawned = true;   // Prevent level skip until shop opens
+      // Delay shop opening so player can read "LEVEL COMPLETE"
+      setTimeout(() => {
         bossSpawned = false;
-        // Delay shop opening so player can read "LEVEL COMPLETE"
-        setTimeout(() => {
-            if (state === 'PLAYING') openShop();
-        }, 2000);
+        waveEnemiesTotal = 0;
+        if (Enemies.isEmpty()) {
+          openShop();
+        }
+      }, 2000);
     }
-}
+  }
 
   function spawnBossAfterWarning(now) {
     bossWarningActive = false;
