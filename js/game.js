@@ -393,10 +393,24 @@ const Game = (() => {
     Player.reset();
   }
 
+  // Shop state: upgrade selection
+  let shopOpen = false;
+  let shopSelection = 0; // Currently selected upgrade card
+  let pendingLevelScore = 0; // Score to display in shop
+
+  // Shop items configuration
+  const SHOP_ITEMS = [
+    { id: 'doubleShot', name: 'Double Shot', desc: 'Fire two bullets simultaneously', cost: 500, icon: '••' },
+    { id: 'rapidFire', name: 'Rapid Fire', desc: 'Fire 50% faster', cost: 750, icon: '»' },
+    { id: 'speedBoost', name: 'Ship Speed', desc: '30% faster ship movement', cost: 400, icon: '→' },
+    { id: 'healthBoost', name: 'Health Boost', desc: '+25 max HP', cost: 600, icon: '♥' }
+  ];
+
   function startGame() {
     state = 'PLAYING';
-    AudioSys.startBGM(bgmVolume);
+    AudioSys.startBGM();
     Enemies.setLevel(level);
+    Player.applyUpgrades();
     spawnWave();
   }
 
