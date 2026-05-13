@@ -163,7 +163,19 @@ const Game = (() => {
 
   function onMouseDown(e) {
     if (isMobile()) { e.preventDefault(); }
-    handleStart(e);
+    // Don't start game on mousedown — let onClick handle it
+    // so settings gear click can be checked first
+    if (state === 'PLAYING') {
+      mouseDown = true;
+      mobileAutoFiring = true;
+      AudioSys.init();
+      AudioSys.resume();
+      // Track mouse position
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      Background.setMouse(mouseX, mouseY);
+      Player.setMouse(mouseX, mouseY);
+    }
   }
 
   function onClick(e) {
@@ -216,11 +228,11 @@ const Game = (() => {
 
   // Check if click is on the settings gear button (generous hit area)
   function isSettingsGearClick(cx, cy) {
-    const s = getScale();
-    const gearSize = s * 14;
+    const gearSize = Math.max(10, (canvas.width / 960) * 14);
     const gearX = canvas.width - gearSize * 2;
     const gearY = canvas.height - gearSize * 2;
-    const hitR = gearSize * 3;
+    // Generous hit area: 80px radius minimum
+    const hitR = Math.max(gearSize * 3, 80);
     const dx = cx - gearX;
     const dy = cy - gearY;
     return dx * dx + dy * dy <= hitR * hitR;
@@ -550,25 +562,32 @@ const Game = (() => {
 
     // Level up animation
     levelUpTimer = 2000;
+    pendingUpgrade = false;
+
+    // Clear crabs between levels (they don't persist)
+    Enemies.clearCrabs();
 
     // Ship upgrade check (every CONFIG.player.upgradeInterval levels)
     if ((level - 1) % CONFIG.player.upgradeInterval === 0) {
-      pendingUpgrade = true;
+        pendingUpgrade = true;
     }
 
     // Check if this is a boss level — start boss warning countdown
     if (level % CONFIG.boss.interval === 0) {
-      bossWarningActive = true;
-      bossWarningTimer = 3000;
-      checkAchievements();
+        bossWarningActive = true;
+        bossWarningTimer = 3000;
+        checkAchievements();
     } else {
-      // Clear enemies and open shop between levels
-      waveEnemiesSpawned = 0;
-      waveEnemiesTotal = 0;
-      bossSpawned = false;
-      openShop();
+        // Clear enemies and add delay before shop opens
+        waveEnemiesSpawned = 0;
+        waveEnemiesTotal = 0;
+        bossSpawned = false;
+        // Delay shop opening so player can read "LEVEL COMPLETE"
+        setTimeout(() => {
+            if (state === 'PLAYING') openShop();
+        }, 2000);
     }
-  }
+}
 
   function spawnBossAfterWarning(now) {
     bossWarningActive = false;

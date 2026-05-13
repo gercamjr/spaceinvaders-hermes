@@ -36,8 +36,8 @@ const CONFIG = {
     lerpFactor: 0.35,
     maxHealth: 100,
     fireRate: 120,       // ms between shots
-    unleashDuration: 5000, // ms
-    unleashMultiplier: 3,
+    unleashDuration: 3000, // ms
+    unleashMultiplier: 2,
     upgradeInterval: 3   // levels per tier
   },
 
@@ -115,10 +115,8 @@ const CONFIG = {
     radius: 12,
     fallSpeed: 1.5,
     glowPulse: 0.03,
-    types: ['unleash', 'shield', 'speedBoost'],
-    shieldDuration: 5000,       // ms of invulnerability
-    speedBoostDuration: 8000,   // ms of faster movement
-    speedBoostMultiplier: 1.6   // movement speed multiplier
+    types: ['unleash'],
+    dropChance: 0.10          // 10% chance for any enemy to drop
   },
 
   // --- HUD ---

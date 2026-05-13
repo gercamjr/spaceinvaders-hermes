@@ -370,6 +370,10 @@ const Enemies = (() => {
     }
   }
 
+  function clearCrabs() {
+    crabEnemies = [];
+  }
+
   function drawCrabs(ctx) {
     for (const c of crabEnemies) {
       if (!c.alive) continue;
@@ -923,10 +927,10 @@ const Enemies = (() => {
     spawnCrab,
     recordMediumKill,
     updateCrabs,
-    drawMines,
     drawCrabs,
+    clearCrabs,
+    drawMines,
     getMines,
-    killCrab,
     killCrab,
     getCrabEnemies,
     getRows,
