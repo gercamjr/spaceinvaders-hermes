@@ -27,6 +27,12 @@ const Game = (() => {
   let enemiesKilled = 0;
   let bullets = [];
   let powerups = [];
+  let powerupStats = { spawned: 0, picked: 0, expired: 0 };
+  let activePowerupEffects = {
+    shieldEnd: 0,
+    speedBoostEnd: 0
+  };
+  let lastPowerupDropAt = -Infinity;
   let mouseX = window.innerWidth / 2;
   let mouseY = window.innerHeight - 100;
   let mouseDown = false;
@@ -232,13 +238,18 @@ const Game = (() => {
     }
   }
 
-  // Check if click is on the settings gear button (generous hit area)
-  function isSettingsGearClick(cx, cy) {
+  // Settings gear hitbox provider (single source of truth for input routing)
+  function getSettingsGearHitbox() {
     const gearSize = Math.max(10, (canvas.width / 960) * 14);
     const gearX = canvas.width - gearSize * 2;
     const gearY = canvas.height - gearSize * 2;
-    // Generous hit area: 80px radius minimum
     const hitR = Math.max(gearSize * 3, 80);
+    return { gearX, gearY, hitR };
+  }
+
+  // Check if click is on the settings gear button
+  function isSettingsGearClick(cx, cy) {
+    const { gearX, gearY, hitR } = getSettingsGearHitbox();
     const dx = cx - gearX;
     const dy = cy - gearY;
     return dx * dx + dy * dy <= hitR * hitR;
@@ -344,16 +355,36 @@ const Game = (() => {
       if (cx >= card.x && cx <= card.x + card.w && cy >= card.y && cy <= card.y + card.h) {
         const item = SHOP_ITEMS.find(i => i.id === card.id);
         if (!item) return;
-        if (SaveManager.get('purchasedUpgrades')[item.id]) return;
-        if (score >= item.cost) {
-          score -= item.cost;
-          const purchased = SaveManager.get('purchasedUpgrades');
-          purchased[item.id] = true;
+
+        const purchased = SaveManager.get('purchasedUpgrades') || {};
+        const lvl = getUpgradeLevel(item.id);
+        const maxLvl = getUpgradeMaxLevel(item);
+        if (lvl >= maxLvl) return;
+
+        const cost = getUpgradeCost(item, lvl);
+        if (score >= cost) {
+          score -= cost;
+          purchased[item.id] = lvl + 1;
           SaveManager.set('purchasedUpgrades', purchased);
           Player.applyUpgrades();
+          shopOffers = getShopOffers();
+          shopBounds = null;
         }
         return;
       }
+    }
+
+    // Reroll button click
+    const r = shopBounds.reroll;
+    if (r && cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) {
+      const rerollCost = 150 + shopRerollsUsed * 100;
+      if (score >= rerollCost) {
+        score -= rerollCost;
+        shopRerollsUsed++;
+        shopOffers = getShopOffers();
+        shopBounds = null;
+      }
+      return;
     }
 
     // Continue button click
@@ -389,6 +420,9 @@ const Game = (() => {
     enemiesKilled = 0;
     bullets = [];
     powerups = [];
+    powerupStats = { spawned: 0, picked: 0, expired: 0 };
+    activePowerupEffects = { shieldEnd: 0, speedBoostEnd: 0 };
+    lastPowerupDropAt = -Infinity;
     waveSpawnTimer = 0;
     waveEnemiesSpawned = 0;
     bossSpawned = false;
@@ -445,11 +479,26 @@ const Game = (() => {
     e.preventDefault();
     if (state === 'PAUSED') return; // paused — ignore touch gestures
 
+    if (e.touches.length === 0) return;
+    const tx = e.touches[0].clientX;
+    const ty = e.touches[0].clientY;
+
     // SETTINGS state: handle settings clicks via touch
     if (state === 'SETTINGS') {
-      if (e.touches.length > 0) {
-        handleSettingsClick(e.touches[0].clientX, e.touches[0].clientY);
-      }
+      handleSettingsClick(tx, ty);
+      return;
+    }
+
+    // SHOP state: touch should buy/continue, not start game
+    if (state === 'SHOP') {
+      handleShopClick(tx, ty);
+      return;
+    }
+
+    // MENU state: settings gear should have priority over start
+    if (state === 'MENU' && isSettingsGearClick(tx, ty)) {
+      previousState = 'MENU';
+      state = 'SETTINGS';
       return;
     }
 
@@ -532,23 +581,64 @@ const Game = (() => {
     }
   }
 
+  function getUpgradeLevel(id) {
+    const p = SaveManager.get('purchasedUpgrades') || {};
+    const v = p[id];
+    if (typeof v === 'number') return v;
+    if (v === true) return 1;
+    return 0;
+  }
+
+  function getUpgradeCost(item, level) {
+    const base = item.cost;
+    const scale = item.costScale || 1.6;
+    return Math.floor(base * Math.pow(scale, level));
+  }
+
+  function getUpgradeMaxLevel(item) {
+    return item.maxLevel || 3;
+  }
+
+  function getShopOffers() {
+    const candidates = SHOP_ITEMS.filter(item => getUpgradeLevel(item.id) < getUpgradeMaxLevel(item));
+    if (candidates.length <= 3) return candidates;
+    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  }
+
+  function migrateLegacyUpgrades() {
+    const purchased = SaveManager.get('purchasedUpgrades') || {};
+    let changed = false;
+    for (const item of SHOP_ITEMS) {
+      if (purchased[item.id] === true) {
+        purchased[item.id] = 1;
+        changed = true;
+      }
+    }
+    if (changed) SaveManager.set('purchasedUpgrades', purchased);
+  }
+
   function openShop() {
+    migrateLegacyUpgrades();
     shopOpen = true;
     state = 'SHOP';
     levelPhase = 'SHOP';
     shopBounds = null;
+    shopOffers = getShopOffers();
     checkAchievements();
   }
 
   let shopSelection = 0; // Currently selected upgrade card
   let pendingLevelScore = 0; // Score to display in shop
+  let shopRerollsUsed = 0;
+  let shopOffers = [];
 
   // Shop items configuration
   const SHOP_ITEMS = [
-    { id: 'doubleShot', name: 'Double Shot', desc: 'Fire two bullets simultaneously', cost: 500, icon: '••' },
-    { id: 'rapidFire', name: 'Rapid Fire', desc: 'Fire 50% faster', cost: 750, icon: '»' },
-    { id: 'speedBoost', name: 'Ship Speed', desc: '30% faster ship movement', cost: 400, icon: '→' },
-    { id: 'healthBoost', name: 'Health Boost', desc: '+25 max HP', cost: 600, icon: '♥' }
+    { id: 'doubleShot', name: 'Double Shot', desc: '+1 parallel bullet lane', cost: 450, maxLevel: 3, costScale: 1.7, icon: '••' },
+    { id: 'rapidFire', name: 'Rapid Fire', desc: 'Increase fire cadence', cost: 520, maxLevel: 3, costScale: 1.75, icon: '»' },
+    { id: 'speedBoost', name: 'Ship Speed', desc: 'Faster movement response', cost: 360, maxLevel: 3, costScale: 1.65, icon: '→' },
+    { id: 'healthBoost', name: 'Health Boost', desc: '+max HP and sustain', cost: 500, maxLevel: 4, costScale: 1.6, icon: '♥' }
   ];
 
   function spawnWave() {
@@ -611,7 +701,71 @@ const Game = (() => {
     return dx * dx + dy * dy < (r1 + r2) * (r1 + r2);
   }
 
-  // --- Screen shake ---
+  function getPowerupColor(type) {
+    if (type === 'shield') return CONFIG.colors.blue;
+    if (type === 'speedBoost') return CONFIG.colors.green;
+    return CONFIG.colors.gold;
+  }
+
+  function pickWeightedType(weights) {
+    const enabled = new Set(CONFIG.powerup.types || ['unleash']);
+    const entries = Object.entries(weights || {}).filter(([k, v]) => enabled.has(k) && v > 0);
+    if (entries.length === 0) return 'unleash';
+    const total = entries.reduce((acc, [, w]) => acc + w, 0);
+    let r = Math.random() * total;
+    for (const [type, w] of entries) {
+      r -= w;
+      if (r <= 0) return type;
+    }
+    return entries[entries.length - 1][0];
+  }
+
+  function maybeSpawnPowerup(sourceType, x, y, now) {
+    const table = CONFIG.powerup.dropTable || {};
+    const spec = table[sourceType] || null;
+    if (!spec) return;
+
+    // Global anti-snowball guards
+    if (powerups.length >= (CONFIG.powerup.maxActive || 2)) return;
+    if (now - lastPowerupDropAt < (CONFIG.powerup.dropCooldownMs || 3000)) return;
+
+    if (Math.random() > spec.chance) return;
+
+    const type = pickWeightedType(spec.weights);
+    powerups.push({
+      x,
+      y,
+      radius: CONFIG.powerup.radius,
+      vy: CONFIG.powerup.fallSpeed,
+      pulse: 0,
+      type,
+      color: getPowerupColor(type)
+    });
+    powerupStats.spawned++;
+    lastPowerupDropAt = now;
+  }
+
+  function applyPowerupEffect(type, now) {
+    const fx = CONFIG.powerup.effects || {};
+    if (type === 'shield') {
+      const d = (fx.shield && fx.shield.duration) || 2000;
+      activePowerupEffects.shieldEnd = Math.max(activePowerupEffects.shieldEnd, now + d);
+      return;
+    }
+    if (type === 'speedBoost') {
+      const d = (fx.speedBoost && fx.speedBoost.duration) || 3000;
+      activePowerupEffects.speedBoostEnd = Math.max(activePowerupEffects.speedBoostEnd, now + d);
+      return;
+    }
+    Player.activateUnleash(now);
+  }
+
+  // Utility: in COMBAT, wave is cleared only when all enemy families are gone
+  function isWaveCleared() {
+    return Enemies.getAlive().length === 0 &&
+           Enemies.getCrabEnemies().length === 0 &&
+           Enemies.getMines().length === 0;
+  }
   function triggerShake(intensity, duration) {
     shakeIntensity = intensity;
     shakeDuration = duration;
@@ -752,8 +906,6 @@ const Game = (() => {
           if (e.hp <= 0) {
             const drop = Enemies.killEnemy(e, e.x, e.y);
             enemiesKilled++;
-            // Track medium kills for powerup eligibility (1 in 15)
-            let mediumEligible = (e.type === 'medium' && Enemies.recordMediumKill());
 
             // Score with combo
             let points = e.score * combo;
@@ -770,16 +922,8 @@ const Game = (() => {
             const shakeCfg = CONFIG.shake[e.type];
             triggerShake(shakeCfg.intensity, shakeCfg.duration);
 
-            // Powerup drop: boss always, medium every 15th kill
-            if (drop || (mediumEligible && e.type === 'medium')) {
-              powerups.push({
-                x: e.x,
-                y: e.y,
-                radius: CONFIG.powerup.radius,
-                vy: CONFIG.powerup.fallSpeed,
-                pulse: 0
-              });
-            }
+            // Powerup drop via centralized table
+            maybeSpawnPowerup(e.type, e.x, e.y, now);
           }
           break;
         }
@@ -803,7 +947,7 @@ const Game = (() => {
           AudioSys.playHit();
 
           if (c.hp <= 0) {
-            const drop = Enemies.killCrab(c, c.x, c.y);
+            Enemies.killCrab(c, c.x, c.y);
             enemiesKilled++;
             let points = c.score * combo;
             if (Player.isUnleashing()) {
@@ -817,15 +961,8 @@ const Game = (() => {
             const shakeCfg = CONFIG.shake.crab;
             triggerShake(shakeCfg.intensity, shakeCfg.duration);
 
-            if (drop) {
-              powerups.push({
-                x: drop.x,
-                y: drop.y,
-                radius: CONFIG.powerup.radius,
-                vy: CONFIG.powerup.fallSpeed,
-                pulse: 0
-              });
-            }
+            // Crab drop via centralized table
+            maybeSpawnPowerup('crab', c.x, c.y, now);
           }
           break;
         }
@@ -836,6 +973,7 @@ const Game = (() => {
     if (Player.isAlive() && Player.getInvulnTimer() <= 0) {
       const pPos = Player.getPos();
       const pRadius = Player.getRadius() + CONFIG.player.contactBuffer;
+      const shieldActive = now < activePowerupEffects.shieldEnd;
       for (const e of Enemies.getAlive()) {
         const eRadius = e.size / 2;
         if (circleCollision(pPos.x, pPos.y, pRadius, e.x, e.y, eRadius)) {
@@ -851,6 +989,13 @@ const Game = (() => {
             comboTimer = CONFIG.combo.decayTime;
             Particles.spawnExplosion(e.x, e.y, e.type);
             AudioSys.playExplosion(e.type);
+            continue;
+          }
+          if (shieldActive) {
+            Enemies.killEnemy(e, e.x, e.y);
+            enemiesKilled++;
+            score += Math.floor(e.score * 0.5);
+            triggerShake(4, 120);
             continue;
           }
           Player.takeDamage(15);
@@ -885,6 +1030,13 @@ const Game = (() => {
             AudioSys.playExplosion('small');
             continue;
           }
+          if (shieldActive) {
+            Enemies.killCrab(c, c.x, c.y);
+            enemiesKilled++;
+            score += Math.floor(c.score * 0.5);
+            triggerShake(3, 100);
+            continue;
+          }
           Player.takeDamage(10);
           flashAlpha = 0.3;
           triggerShake(5, 150);
@@ -905,6 +1057,10 @@ const Game = (() => {
       for (let i = Enemies.getInkBlobs().length - 1; i >= 0; i--) {
         const blob = Enemies.getInkBlobs()[i];
         if (circleCollision(pPos.x, pPos.y, Player.getRadius(), blob.x, blob.y, blob.radius)) {
+          if (shieldActive) {
+            Enemies.getInkBlobs().splice(i, 1);
+            continue;
+          }
           Player.takeDamage(blob.damage);
           flashAlpha = 0.2;
           Enemies.getInkBlobs().splice(i, 1);
@@ -919,6 +1075,10 @@ const Game = (() => {
       for (let i = eLasers.length - 1; i >= 0; i--) {
         const laser = eLasers[i];
         if (circleCollision(pPos.x, pPos.y, Player.getRadius(), laser.x, laser.y, laser.radius)) {
+          if (shieldActive) {
+            eLasers.splice(i, 1);
+            continue;
+          }
           Player.takeDamage(laser.damage);
           flashAlpha = 0.2;
           triggerShake(5, 150);
@@ -944,6 +1104,11 @@ const Game = (() => {
       for (let i = Enemies.getMines().length - 1; i >= 0; i--) {
         const mine = Enemies.getMines()[i];
         if (mine.armed && circleCollision(pPos.x, pPos.y, Player.getRadius(), mine.x, mine.y, mine.radius)) {
+          if (shieldActive) {
+            Particles.spawnExplosion(mine.x, mine.y, 'small');
+            Enemies.getMines().splice(i, 1);
+            continue;
+          }
           Player.takeDamage(mine.damage);
           flashAlpha = 0.25;
           triggerShake(6, 120);
@@ -969,16 +1134,25 @@ const Game = (() => {
 
       const pPos = Player.getPos();
       if (circleCollision(pPos.x, pPos.y, Player.getRadius() + 10, p.x, p.y, p.radius)) {
-        Player.activateUnleash(now);
+        applyPowerupEffect(p.type || 'unleash', now);
         AudioSys.playPowerup();
         Particles.spawnPowerupSparkle(p.x, p.y);
+        powerupStats.picked++;
         powerups.splice(i, 1);
         continue;
       }
 
       if (p.y > window.innerHeight + 20) {
+        powerupStats.expired++;
         powerups.splice(i, 1);
       }
+    }
+
+    // Speed boost effect decay/application
+    if (now < activePowerupEffects.speedBoostEnd) {
+      Player.setMoveMultiplier((CONFIG.powerup.effects.speedBoost && CONFIG.powerup.effects.speedBoost.multiplier) || 1.25);
+    } else {
+      Player.setMoveMultiplier(1);
     }
 
     // Combo decay
@@ -1006,7 +1180,7 @@ const Game = (() => {
       levelClearDelayTimer -= dt;
       if (levelClearDelayTimer <= 0) {
         levelClearDelayTimer = 0;
-        openShop();
+        if (!shopOpen && state === 'PLAYING') openShop();
       }
     }
 
@@ -1053,12 +1227,13 @@ const Game = (() => {
 
     // --- Level progression (phase-gated to avoid double-advancing) ---
     if (levelPhase === 'COMBAT') {
+      const cleared = isWaveCleared();
       // Non-boss levels: advance when wave is fully spawned and all enemies cleared
-      if (Enemies.isEmpty() && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
+      if (cleared && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
         advanceLevel(now);
       }
-      // Boss levels: advance when boss (and all mini-swarm) is cleared
-      if (bossSpawned && Enemies.isEmpty()) {
+      // Boss levels: advance when boss (and all mini-swarm/hazards) is cleared
+      if (bossSpawned && cleared) {
         bossSpawned = false;
         advanceLevel(now);
       }
@@ -1110,7 +1285,16 @@ const Game = (() => {
 
     // Shop
     if (state === 'SHOP') {
-      shopBounds = UI.drawShopScreen(ctx, score, SaveManager.get('purchasedUpgrades'), SHOP_ITEMS);
+      shopBounds = UI.drawShopScreen(
+        ctx,
+        score,
+        SaveManager.get('purchasedUpgrades'),
+        shopOffers.length ? shopOffers : SHOP_ITEMS,
+        getUpgradeLevel,
+        getUpgradeCost,
+        getUpgradeMaxLevel,
+        150 + shopRerollsUsed * 100
+      );
       ctx.restore();
       return;
     }
@@ -1124,10 +1308,11 @@ const Game = (() => {
     // Powerups
     for (const p of powerups) {
       const glow = 0.5 + Math.sin(p.pulse) * 0.5;
+      const col = p.color || getPowerupColor(p.type || 'unleash');
       ctx.save();
-      ctx.shadowColor = CONFIG.colors.gold;
+      ctx.shadowColor = col;
       ctx.shadowBlur = 10 + glow * 10;
-      ctx.fillStyle = CONFIG.colors.gold;
+      ctx.fillStyle = col;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius + glow * 3, 0, Math.PI * 2);
       ctx.fill();

@@ -115,8 +115,28 @@ const CONFIG = {
     radius: 12,
     fallSpeed: 1.5,
     glowPulse: 0.03,
-    types: ['unleash'],
-    dropChance: 0.10          // 10% chance for any enemy to drop
+    maxActive: 2,
+    dropCooldownMs: 3500,
+    // enabled types for weighted selection
+    types: ['unleash', 'shield', 'speedBoost'],
+    // runtime effect tuning
+    effects: {
+      unleash:   { duration: 3000 },
+      shield:    { duration: 2500 },
+      speedBoost:{ duration: 3500, multiplier: 1.35 }
+    },
+    // central drop table (probability roll per kill source)
+    // keyed by source enemy type
+    dropTable: {
+      boss:       { chance: 1.0, weights: { unleash: 0.6, shield: 0.25, speedBoost: 0.15 } },
+      medium:     { chance: 0.08, weights: { unleash: 0.45, shield: 0.25, speedBoost: 0.30 } },
+      small:      { chance: 0.03, weights: { unleash: 0.40, shield: 0.25, speedBoost: 0.35 } },
+      baby:       { chance: 0.01, weights: { unleash: 0.30, shield: 0.20, speedBoost: 0.50 } },
+      crab:       { chance: 0.06, weights: { unleash: 0.35, shield: 0.35, speedBoost: 0.30 } },
+      shield:     { chance: 0.05, weights: { unleash: 0.30, shield: 0.45, speedBoost: 0.25 } },
+      mine:       { chance: 0.02, weights: { unleash: 0.25, shield: 0.35, speedBoost: 0.40 } },
+      teleporter: { chance: 0.05, weights: { unleash: 0.30, shield: 0.20, speedBoost: 0.50 } }
+    }
   },
 
   // --- HUD ---

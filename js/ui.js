@@ -546,7 +546,7 @@ const UI = (() => {
   }
 
   // Upgrade shop between levels
-  function drawShopScreen(ctx, score, upgrades, ups) {
+  function drawShopScreen(ctx, score, upgrades, ups, getLevel, getCost, getMaxLevel, rerollCost) {
     const cx = ctx.canvas.width / 2;
     const cy = ctx.canvas.height / 2;
 
@@ -590,8 +590,11 @@ const UI = (() => {
 
     for (let i = 0; i < ups.length; i++) {
       const u = ups[i];
-      const owned = upgrades[u.id];
-      const canAfford = score >= u.cost;
+      const lvl = getLevel ? getLevel(u.id) : (upgrades[u.id] ? 1 : 0);
+      const maxLvl = getMaxLevel ? getMaxLevel(u) : (u.maxLevel || 1);
+      const owned = lvl >= maxLvl;
+      const nextCost = getCost ? getCost(u, lvl) : u.cost;
+      const canAfford = score >= nextCost;
       const x = startX + i * (cardW + cardGap);
       const y = startY;
 
@@ -631,15 +634,20 @@ const UI = (() => {
       ctx.fillStyle = '#aaa';
       ctx.fillText(u.desc, x + cardW / 2, y + scaledFontSize(72));
 
+      // Level / tier info
+      ctx.font = `${scaledFontSize(10)}px monospace`;
+      ctx.fillStyle = '#bbb';
+      ctx.fillText(`Lv ${Math.min(lvl, maxLvl)}/${maxLvl}`, x + cardW / 2, y + scaledFontSize(87));
+
       // Owned text or cost
       if (owned) {
         ctx.font = `bold ${scaledFontSize(14)}px monospace`;
         ctx.fillStyle = CONFIG.colors.green;
-        ctx.fillText('[OWNED]', x + cardW / 2, y + cardH - scaledFontSize(18));
+        ctx.fillText('[MAX]', x + cardW / 2, y + cardH - scaledFontSize(18));
       } else {
         ctx.font = `bold ${fontSize}px monospace`;
         ctx.fillStyle = canAfford ? CONFIG.colors.gold : '#666';
-        ctx.fillText(`${u.cost} pts`, x + cardW / 2, y + cardH - scaledFontSize(18));
+        ctx.fillText(`${nextCost} pts`, x + cardW / 2, y + cardH - scaledFontSize(18));
       }
     }
 
@@ -648,6 +656,18 @@ const UI = (() => {
     const contBtnH = scaledFontSize(40);
     const contY = startY + cardH + scaledFontSize(30);
     const contX = cx - contBtnW / 2;
+
+    // Reroll button
+    const rerollBtnW = scaledFontSize(180);
+    const rerollBtnH = scaledFontSize(34);
+    const rerollX = cx - rerollBtnW / 2;
+    const rerollY = contY - scaledFontSize(46);
+    const canReroll = score >= (rerollCost || 0);
+    ctx.fillStyle = canReroll ? '#444' : '#222';
+    roundRect(ctx, rerollX, rerollY, rerollBtnW, rerollBtnH, scaledFontSize(8));
+    ctx.font = `${scaledFontSize(13)}px monospace`;
+    ctx.fillStyle = canReroll ? CONFIG.colors.cyan : '#666';
+    ctx.fillText(`REROLL (${rerollCost || 0})`, cx, rerollY + rerollBtnH / 2 + 1);
 
     ctx.fillStyle = CONFIG.colors.cyan;
     roundRect(ctx, contX, contY, contBtnW, contBtnH, scaledFontSize(8));
@@ -673,6 +693,12 @@ const UI = (() => {
         y: contY,
         w: contBtnW,
         h: contBtnH
+      },
+      reroll: {
+        x: rerollX,
+        y: rerollY,
+        w: rerollBtnW,
+        h: rerollBtnH
       }
     };
   }

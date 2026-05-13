@@ -1,0 +1,33 @@
+name: Regression Gates
+
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: JS syntax checks
+        run: |
+          for f in js/*.js; do
+            node --check "$f"
+          done
+
+      - name: Regression static checks
+        run: |
+          python3 scripts/regression_check.py

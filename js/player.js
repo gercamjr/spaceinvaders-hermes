@@ -88,6 +88,8 @@ const Player = (() => {
     healthBoost: false
   };
 
+  let moveMultiplier = 1;
+
   function init() {
     ship = {
       x: window.innerWidth / 2,
@@ -118,17 +120,20 @@ const Player = (() => {
     upgrades.healthBoost = !!purchased['healthBoost'];
 
     // Apply health boost
-    if (upgrades.healthBoost) {
-      ship.maxHealth += 25;
-      if (ship.health === CONFIG.player.maxHealth) {
-        ship.health = ship.maxHealth;
-      } else {
-        ship.health = Math.min(ship.health + 25, ship.maxHealth);
+    const healthLevel = Math.max(0, (typeof purchased['healthBoost'] === 'number') ? purchased['healthBoost'] : (purchased['healthBoost'] ? 1 : 0));
+    if (healthLevel > 0) {
+      const bonus = 25 * healthLevel;
+      const targetMax = CONFIG.player.maxHealth + bonus;
+      if (ship.maxHealth < targetMax) {
+        const delta = targetMax - ship.maxHealth;
+        ship.maxHealth = targetMax;
+        ship.health = Math.min(ship.health + delta, ship.maxHealth);
       }
     }
     // Apply speed boost
-    if (upgrades.speedBoost) {
-      ship.lerpFactor = 0.55;
+    const speedLevel = Math.max(0, (typeof purchased['speedBoost'] === 'number') ? purchased['speedBoost'] : (purchased['speedBoost'] ? 1 : 0));
+    if (speedLevel > 0) {
+      ship.lerpFactor = Math.min(0.9, CONFIG.player.lerpFactor + 0.08 * speedLevel);
     } else {
       ship.lerpFactor = CONFIG.player.lerpFactor;
     }
@@ -161,9 +166,12 @@ const Player = (() => {
       ship.invulnTimer -= dt;
     }
 
-    // Lerp mouse tracking — use ship.lerpFactor (modified by upgrades)
+    // Lerp mouse tracking — use ship.lerpFactor (modified by upgrades/effects)
     const prevX = ship.x;
-    const lerp = ship.lerpFactor || CONFIG.player.lerpFactor;
+    let lerp = ship.lerpFactor || CONFIG.player.lerpFactor;
+    if (ship.unleashActive) lerp *= 1.2;
+    lerp *= moveMultiplier;
+    lerp = Math.min(0.95, lerp);
     ship.x += (ship.mouseX - ship.x) * lerp;
     ship.y += (ship.mouseY - ship.y) * lerp;
 
@@ -198,6 +206,12 @@ const Player = (() => {
     let rate = CONFIG.player.fireRate;
     if (ship.unleashActive) rate *= 0.4;
     if (upgrades.rapidFire) rate *= 0.5;
+    // rapidFire tiers beyond legacy boolean
+    const purchased = SaveManager.get('purchasedUpgrades') || {};
+    const rapidLevel = Math.max(0, (typeof purchased['rapidFire'] === 'number') ? purchased['rapidFire'] : (purchased['rapidFire'] ? 1 : 0));
+    if (rapidLevel > 1) {
+      rate *= Math.max(0.55, 1 - (rapidLevel - 1) * 0.15);
+    }
     return now - ship.lastShot >= rate;
   }
 
@@ -227,7 +241,9 @@ const Player = (() => {
         });
       }
     } else if (upgrades.doubleShot) {
-      // Double shot: two parallel bullets
+      // Double shot (tier-scaled): two lanes + optional center lane for higher tiers
+      const purchased = SaveManager.get('purchasedUpgrades') || {};
+      const dsLevel = Math.max(0, (typeof purchased['doubleShot'] === 'number') ? purchased['doubleShot'] : (purchased['doubleShot'] ? 1 : 0));
       bullets.push({
         x: ship.x - 8,
         y: ship.y - TIER_SIZES[tier - 1] / 2,
@@ -250,6 +266,19 @@ const Player = (() => {
         damage: 10,
         tier: tier
       });
+      if (dsLevel >= 3) {
+        bullets.push({
+          x: ship.x,
+          y: ship.y - TIER_SIZES[tier - 1] / 2,
+          vx: 0,
+          vy: -speed,
+          width: 3,
+          height: 10,
+          color: TIER_COLORS[tier - 1],
+          damage: 10,
+          tier: tier
+        });
+      }
     } else if (tier === 1) {
       bullets.push({
         x: ship.x,
@@ -425,6 +454,9 @@ const Player = (() => {
   function getRadius() { return ship ? ship.radius : 0; }
   function getInvulnTimer() { return ship ? ship.invulnTimer : 0; }
   function reset() { init(); }
+  function setMoveMultiplier(mult) {
+    moveMultiplier = Math.max(0.6, Math.min(2.0, mult || 1));
+  }
 
   return {
     init,
@@ -444,6 +476,7 @@ const Player = (() => {
     getRadius,
     getInvulnTimer,
     reset,
+    setMoveMultiplier,
     applyUpgrades
   };
 })();
