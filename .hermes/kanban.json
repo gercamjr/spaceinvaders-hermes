@@ -72,12 +72,77 @@
           ],
           "body": "- Add screenshot capture on gameover (canvas.toDataURL for shareable image)\n- Add 'Share Score' functionality (Twitter/X, Facebook, link copy)\n- Create app store listing assets: screenshots, description, feature list\n- Add credits screen with developer info and attribution\n- Add license.txt and copyright notice\n- Prepare distribution packages: itch.io page, Newgrounds, game jam submission\n- Add 'How to Play' tutorial with interactive walkthrough",
           "status": "backlog"
+        },
+        {
+          "id": "gm-15-powerup-balance-refactor",
+          "title": "Refactor powerup system to typed drops + balance tables",
+          "column": "backlog",
+          "labels": [
+            "combat",
+            "progression"
+          ],
+          "body": "Issue: config exposes powerup.types/dropChance, but runtime ignores it and powerups are untyped (all behave as unleash). This makes balancing brittle and caused overpowered runs.\n\nAcceptance:\n- Add explicit powerup type field on spawn (unleash/shield/speed if enabled).\n- Route pickup effects by type, sourced from CONFIG only.\n- Replace hardcoded drop rules in enemies/game with central drop table (by enemy type + level band).\n- Add cap/cooldown to prevent chain power spikes.\n- Add telemetry counters (drops spawned, picked, expired) for balancing.",
+          "status": "backlog"
+        },
+        {
+          "id": "gm-16-shop-depth-and-economy",
+          "title": "Expand shop depth to multi-tier upgrades and reroll/skip economy",
+          "column": "backlog",
+          "labels": [
+            "progression",
+            "content"
+          ],
+          "body": "Issue: shop feels limited (few static upgrades, binary owned state), reducing replayability and monetization readiness.\n\nAcceptance:\n- Convert upgrades to tiered progression (e.g., damage, fire rate, move speed, max HP, crit chance) with scaling costs.\n- Show current tier, next-tier delta, and affordability clearly in UI.\n- Add meaningful choice each shop visit (curated offers, reroll, or save points).\n- Balance economy so level rewards support 1 meaningful decision per shop without runaway snowball.\n- Persist tiers safely in save schema with migration from existing booleans.",
+          "status": "backlog"
+        },
+        {
+          "id": "gm-17-crab-wave-lifecycle-consistency",
+          "title": "Unify crab lifecycle with wave completion logic",
+          "column": "backlog",
+          "labels": [
+            "gameplay"
+          ],
+          "body": "Issue: crabs are tracked outside main enemy list and can desync with wave completion semantics; previous persistence bug confirms lifecycle mismatch risk.\n\nAcceptance:\n- Define whether crabs count toward wave completion and enforce consistently.\n- Include crab state in a single enemy query API used by progression checks (isWaveCleared).\n- Remove ad-hoc clearCrabs calls from unrelated transitions where possible.\n- Add tests for: crab alive at wave end, crab kill on transition, boss+crab coexistence.",
+          "status": "backlog"
+        },
+        {
+          "id": "gm-18-settings-input-priority-hardening",
+          "title": "Harden menu/settings input routing and hit-testing",
+          "column": "backlog",
+          "labels": [
+            "polish",
+            "mobile"
+          ],
+          "body": "Issue: input order bug (mousedown starting game before click hit-test) broke settings access; indicates brittle event routing.\n\nAcceptance:\n- Centralize input router by state (MENU/SETTINGS/SHOP/PLAYING/PAUSED/GAMEOVER).\n- Ensure settings gear receives priority over start action on all pointer types.\n- Normalize hit-testing against actual rendered bounds (single source of truth from UI layout).\n- Add smoke tests for desktop click and touch interactions on menu/settings.",
+          "status": "backlog"
+        },
+        {
+          "id": "gm-19-automated-regression-gates",
+          "title": "Add automated regression gates for core gameplay loops",
+          "column": "backlog",
+          "labels": [
+            "platform",
+            "gameplay"
+          ],
+          "body": "Issue: repeated regressions (missing functions, broken transitions, undefined vars) indicate missing CI gates.\n\nAcceptance:\n- Add npm scripts: lint, typecheck (if enabled), syntax check, test.\n- Add headless gameplay smoke tests: start game, clear wave, open shop, buy upgrade, resume, die, gameover save.\n- Add static checks for module export integrity and undefined symbol detection across js/*.js.\n- Run all gates in GitHub Actions on PR/push and block merge on failure.",
+          "status": "backlog"
         }
       ]
     },
     "in_progress": {
       "title": "In Progress",
-      "cards": []
+      "cards": [
+        {
+          "id": "gm-14-level-flow-state-machine",
+          "title": "Fix level-flow state machine (prevent skip/lock between level clear, shop, boss warning)",
+          "column": "in_progress",
+          "labels": [
+            "gameplay"
+          ],
+          "body": "Issue: current progression reuses bossSpawned/wave counters as temporary guards, causing fragile transitions and prior freeze/rapid-skip bugs.\n\nAcceptance:\n- Introduce explicit level-phase enum (e.g., COMBAT, LEVEL_CLEAR_DELAY, SHOP, BOSS_WARNING).\n- Ensure advanceLevel() can execute at most once per clear event.\n- Remove setTimeout race paths that can fire after state changes.\n- Add deterministic transition tests/log assertions for: normal level clear, boss clear, pause/unpause during transitions, restart during delay.\n- Verify no boss appears immediately after level 1 unless configured.\n\nProgress update:\n- Added explicit levelPhase state machine (COMBAT/LEVEL_CLEAR_DELAY/SHOP/BOSS_WARNING).\n- Replaced setTimeout shop transition with deterministic timer in update().\n- Gated advanceLevel progression by phase to prevent rapid multi-advance.\n- Wired phase transitions in startGame/openShop/shop-continue/spawnBossAfterWarning/resetGame.\n",
+          "status": "in_progress"
+        }
+      ]
     },
     "done": {
       "title": "Done",

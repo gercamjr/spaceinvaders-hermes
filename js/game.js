@@ -41,6 +41,12 @@ const Game = (() => {
   let bossSpawned = false;
   let miniSwarmSpawned = false;
 
+  // Explicit progression phase (separate from UI/game state)
+  // COMBAT -> LEVEL_CLEAR_DELAY -> SHOP -> COMBAT
+  // COMBAT -> BOSS_WARNING -> COMBAT
+  let levelPhase = 'COMBAT';
+  let levelClearDelayTimer = 0;
+
   // Screen shake
   let shakeX = 0;
   let shakeY = 0;
@@ -355,12 +361,15 @@ const Game = (() => {
     if (cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h) {
       shopOpen = false;
       state = 'PLAYING';
+      levelPhase = 'COMBAT';
       spawnWave();
     }
   }
 
   function startGame() {
     state = 'PLAYING';
+    levelPhase = 'COMBAT';
+    levelClearDelayTimer = 0;
     AudioSys.startBGM();
     Enemies.setLevel(level);
     Player.applyUpgrades();
@@ -388,6 +397,8 @@ const Game = (() => {
     shakeDuration = 0;
     flashAlpha = 0;
     levelUpTimer = 0;
+    levelPhase = 'COMBAT';
+    levelClearDelayTimer = 0;
     bossWarningActive = false;
     bossWarningTimer = 0;
     bossDefeatedTimer = 0;
@@ -524,6 +535,7 @@ const Game = (() => {
   function openShop() {
     shopOpen = true;
     state = 'SHOP';
+    levelPhase = 'SHOP';
     shopBounds = null;
     checkAchievements();
   }
@@ -570,27 +582,23 @@ const Game = (() => {
     }
     // Check if this is a boss level — start boss warning countdown
     if (level % CONFIG.boss.interval === 0) {
+      levelPhase = 'BOSS_WARNING';
       bossWarningActive = true;
       bossWarningTimer = 3000;
       checkAchievements();
     } else {
-      // Clear enemies and add delay before shop opens
+      // Enter deterministic transition phase before shop
+      levelPhase = 'LEVEL_CLEAR_DELAY';
+      levelClearDelayTimer = 2000;
       waveEnemiesSpawned = 0;
-      waveEnemiesTotal = 1; // Prevent isEmpty() from triggering again
-      bossSpawned = true;   // Prevent level skip until shop opens
-      // Delay shop opening so player can read "LEVEL COMPLETE"
-      setTimeout(() => {
-        bossSpawned = false;
-        waveEnemiesTotal = 0;
-        if (Enemies.isEmpty()) {
-          openShop();
-        }
-      }, 2000);
+      waveEnemiesTotal = 0;
+      bossSpawned = false;
     }
   }
 
   function spawnBossAfterWarning(now) {
     bossWarningActive = false;
+    levelPhase = 'COMBAT';
     Enemies.setLevel(level);
     bossSpawned = true;
     Enemies.spawnBoss(level);
@@ -993,6 +1001,15 @@ const Game = (() => {
       if (levelUpTimer < 0) levelUpTimer = 0;
     }
 
+    // Deterministic level-clear delay phase (replaces timeout race)
+    if (levelPhase === 'LEVEL_CLEAR_DELAY') {
+      levelClearDelayTimer -= dt;
+      if (levelClearDelayTimer <= 0) {
+        levelClearDelayTimer = 0;
+        openShop();
+      }
+    }
+
     // Boss warning countdown
     if (bossWarningActive) {
       bossWarningTimer -= dt;
@@ -1034,15 +1051,17 @@ const Game = (() => {
       }
     }
 
-    // --- Level progression (two paths to avoid double-advancing) ---
-    // Non-boss levels: advance when wave is fully spawned and all enemies cleared
-    if (Enemies.isEmpty() && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
-      advanceLevel(now);
-    }
-    // Boss levels: advance when boss (and all mini-swarm) is cleared
-    if (bossSpawned && Enemies.isEmpty()) {
-      bossSpawned = false;
-      advanceLevel(now);
+    // --- Level progression (phase-gated to avoid double-advancing) ---
+    if (levelPhase === 'COMBAT') {
+      // Non-boss levels: advance when wave is fully spawned and all enemies cleared
+      if (Enemies.isEmpty() && waveEnemiesSpawned >= waveEnemiesTotal && !bossSpawned) {
+        advanceLevel(now);
+      }
+      // Boss levels: advance when boss (and all mini-swarm) is cleared
+      if (bossSpawned && Enemies.isEmpty()) {
+        bossSpawned = false;
+        advanceLevel(now);
+      }
     }
 
     // Update particles
