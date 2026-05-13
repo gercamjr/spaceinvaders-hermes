@@ -72,6 +72,22 @@ const Player = (() => {
 
   const TIER_SIZES = [36, 42, 48, 54]; // ship grows with upgrades
 
+  // Ship skins: configurable glow colors
+  const SKIN_COLORS = {
+    default:    CONFIG.colors.cyan,     // cyan glow
+    neon_green: CONFIG.colors.green,    // green glow
+    gold:       CONFIG.colors.gold,     // gold glow
+    rainbow:    null                    // special rainbow shimmer
+  };
+
+  // Upgrade defaults
+  let upgrades = {
+    doubleShot: false,
+    rapidFire: false,
+    speedBoost: false,
+    healthBoost: false
+  };
+
   function init() {
     ship = {
       x: window.innerWidth / 2,
@@ -89,6 +105,44 @@ const Player = (() => {
       alive: true,
       invulnTimer: 0
     };
+    applyUpgrades();
+  }
+
+  function applyUpgrades() {
+    if (!ship) return;
+    const purchased = SaveManager.get('purchasedUpgrades');
+    upgrades.doubleShot = !!purchased['doubleShot'];
+    upgrades.rapidFire = !!purchased['rapidFire'];
+    upgrades.speedBoost = !!purchased['speedBoost'];
+    upgrades.healthBoost = !!purchased['healthBoost'];
+
+    // Apply health boost
+    if (upgrades.healthBoost) {
+      ship.maxHealth += 25;
+      if (ship.health === CONFIG.player.maxHealth) {
+        ship.health = ship.maxHealth;
+      } else {
+        ship.health = Math.min(ship.health + 25, ship.maxHealth);
+      }
+    }
+    // Apply speed boost
+    if (upgrades.speedBoost) {
+      ship.lerpFactor = 0.55;
+    } else {
+      ship.lerpFactor = CONFIG.player.lerpFactor;
+    }
+  }
+
+  function getSkinColor() {
+    const skin = SaveManager.get('selectedSkin') || 'default';
+    if (skin === 'default') return CONFIG.colors.cyan;
+    if (skin === 'neon_green') return CONFIG.colors.green;
+    if (skin === 'gold') return CONFIG.colors.gold;
+    return CONFIG.colors.cyan;
+  }
+
+  function isRainbowSkin() {
+    return SaveManager.get('selectedSkin') === 'rainbow';
   }
   function setMouse(x, y) {
     if (ship) {
