@@ -834,8 +834,8 @@ const Game = (() => {
           // Push enemy away
           e.y += 30;
           if (!Player.isAlive()) {
-            state = 'GAMEOVER';
             AudioSys.stopBGM();
+            handleGameOver(now);
             Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
             AudioSys.playExplosion('boss');
           }
@@ -866,8 +866,8 @@ const Game = (() => {
           // Push crab toward its direction
           c.x += c.direction * 50;
           if (!Player.isAlive()) {
-            state = 'GAMEOVER';
             AudioSys.stopBGM();
+            handleGameOver(now);
             Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
             AudioSys.playExplosion('boss');
           }
@@ -905,8 +905,8 @@ const Game = (() => {
           comboTimer = 0;
           eLasers.splice(i, 1);
           if (!Player.isAlive()) {
-            state = 'GAMEOVER';
             AudioSys.stopBGM();
+            handleGameOver(now);
             Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
             AudioSys.playExplosion('boss');
           }
@@ -925,8 +925,8 @@ const Game = (() => {
           combo = 1;
           comboTimer = 0;
           if (!Player.isAlive()) {
-            state = 'GAMEOVER';
             AudioSys.stopBGM();
+            handleGameOver(now);
             Particles.spawnExplosion(pPos.x, pPos.y, 'boss');
             AudioSys.playExplosion('boss');
           }
@@ -1072,7 +1072,7 @@ const Game = (() => {
 
     // Shop
     if (state === 'SHOP') {
-      shopBounds = UI.drawShopScreen(ctx, score, SaveManager.get('purchasedUpgrades'));
+      shopBounds = UI.drawShopScreen(ctx, score, SaveManager.get('purchasedUpgrades'), SHOP_ITEMS);
       ctx.restore();
       return;
     }
@@ -1194,17 +1194,6 @@ const Game = (() => {
     }
 
     // Boss defeated detection — check when boss was just killed
-    if (bossSpawned && !Enemies.getAlive().some(e => e.type === 'boss') && bossDefeatedTimer === 0 && level >= CONFIG.boss.interval) {
-      bossDefeatedTimer = 2000;
-      flashAlpha = 0.4;
-      triggerShake(12, 400);
-      // Celebration particles
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 3;
-      for (let i = 0; i < 4; i++) {
-        setTimeout(() => Particles.spawnExplosion(cx + (Math.random()-0.5)*200, cy + (Math.random()-0.5)*100, 'boss'), i * 100);
-      }
-    }
 
     // Game over
     if (state === 'PAUSED') {

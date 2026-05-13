@@ -546,7 +546,7 @@ const UI = (() => {
   }
 
   // Upgrade shop between levels
-  function drawShopScreen(ctx, score, upgrades) {
+  function drawShopScreen(ctx, score, upgrades, ups) {
     const cx = ctx.canvas.width / 2;
     const cy = ctx.canvas.height / 2;
 
@@ -555,9 +555,6 @@ const UI = (() => {
     const cardH = scaledFontSize(130);
     const cardGap = scaledFontSize(16);
     const fontSize = scaledFontSize(16);
-    const btnH = scaledFontSize(36);
-
-    // Dark overlay
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 

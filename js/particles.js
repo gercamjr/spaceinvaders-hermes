@@ -243,6 +243,20 @@ const Particles = (() => {
     }
   }
 
+  function spawnTeleportEffect(x, y, color, isTeleportIn) {
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      create(x, y, {
+        vx: Math.cos(angle) * 2,
+        vy: Math.sin(angle) * 2,
+        life: 0.4 + Math.random() * 0.3,
+        size: 1 + Math.random() * 2,
+        color,
+        friction: 0.96
+      });
+    }
+  }
+
   function clear() {
     pool = [];
   }
@@ -261,6 +275,7 @@ const Particles = (() => {
     spawnPowerupSparkle,
     spawnEnemyLaserTrail,
     spawnUpgradeParticles,
+    spawnTeleportEffect,
     clear
   };
 })();
